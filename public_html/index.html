@@ -4,18 +4,47 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Synth Garden - Wo Klänge zu Leben erwachen</title>
-	 <link rel="stylesheet" href="style.css">
-    
-       
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="particles" id="particles"></div>
-    
+
     <header>
-        <div class="container">
-            <h1 class="logo">Synth Garden</h1>
-            <p class="tagline">Wo Synthesizer-Klänge zu lebendigen, wachsenden Pflanzen werden</p>
-        </div>
+        <header>
+  <nav class="navbar">
+    <div class="nav-container">
+      <div class="nav-logo">Synth Garden</div>
+      <ul class="nav-links">
+        <li><a href="index.html">Startseite</a></li>
+        <li class="dropdown">
+          <a href="#">Experience ▼</a>
+          <ul class="dropdown-menu">
+            <li><a href="#">Interaktive Demo</a></li>
+            <li><a href="#">Live Visuals</a></li>
+            <li><a href="#">Sound-Reaktionen</a></li>
+          </ul>
+        </li>
+        <li class="dropdown">
+          <a href="#">About ▼</a>
+          <ul class="dropdown-menu">
+            <li><a href="#">Idee & Konzept</a></li>
+            <li><a href="#">Team</a></li>
+            <li><a href="#">Philosophie</a></li>
+          </ul>
+        </li>
+        <li class="dropdown">
+          <a href="#">Controls ▼</a>
+          <ul class="dropdown-menu">
+            <li><a href="#">Synth-Einstellungen</a></li>
+            <li><a href="#">Visuals steuern</a></li>
+            <li><a href="#">Anleitung</a></li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+  </nav>
+</header>
+
     </header>
 
     <main>
@@ -47,7 +76,7 @@
                     <span class="feature-icon">🌈</span>
                     <h3 class="feature-title">Dynamische Farben</h3>
                     <p class="feature-text">
-                        Harmonien und Tonhöhen bestimmen das Farbspektrum deiner Pflanzen - von sanften Pastelltönen 
+                        Harmonien und Tonhöhen bestimmen das Farbspektrum deiner Pflanzen – von sanften Pastelltönen 
                         bis zu leuchtenden Neonfarben.
                     </p>
                 </div>
@@ -77,12 +106,12 @@
 
     <footer>
         <div class="container">
-            <p>&copy; 2025 Synth Garden - Eine interaktive Klang-Visualisierung</p>
+            <p>&copy; 2025 Synth Garden – Eine interaktive Klang-Visualisierung</p>
         </div>
     </footer>
 
     <script>
-        // Create floating particles
+        // === Floating Particles ===
         function createParticles() {
             const particlesContainer = document.getElementById('particles');
             const particleCount = 50;
@@ -98,22 +127,19 @@
             }
         }
 
-        // Simulate garden entry
+        // === Start Garden Button ===
         function startGarden(event) {
             event.preventDefault();
-            
             const button = event.target;
             const originalText = button.textContent;
             
             button.textContent = 'Garten wird geladen...';
             button.style.background = 'linear-gradient(45deg, #16a34a, #15803d)';
-            
-            // Simulate loading
+
             setTimeout(() => {
                 button.textContent = '🌱 Willkommen im Garten!';
                 button.style.background = 'linear-gradient(45deg, #22c55e, #16a34a)';
                 
-                // Show success message
                 const message = document.createElement('div');
                 message.style.cssText = `
                     position: fixed;
@@ -152,48 +178,36 @@
             }, 2000);
         }
 
-        // Add hover effects to feature cards
+        // === Scroll Animation ===
         document.addEventListener('DOMContentLoaded', function() {
             createParticles();
-            
+
             const featureCards = document.querySelectorAll('.feature-card');
             featureCards.forEach(card => {
-                card.addEventListener('mouseenter', function() {
-                    this.style.boxShadow = '0 20px 40px rgba(100, 255, 150, 0.2)';
-                });
-                
-                card.addEventListener('mouseleave', function() {
-                    this.style.boxShadow = 'none';
-                });
+                card.addEventListener('mouseenter', () => card.style.boxShadow = '0 20px 40px rgba(100, 255, 150, 0.2)');
+                card.addEventListener('mouseleave', () => card.style.boxShadow = 'none');
             });
-        });
 
-        // Animate elements on scroll
-        function animateOnScroll() {
             const elements = document.querySelectorAll('.feature-card, .tech-badge');
-            elements.forEach(element => {
-                const elementTop = element.getBoundingClientRect().top;
-                const elementVisible = 150;
-                
-                if (elementTop < window.innerHeight - elementVisible) {
-                    element.style.opacity = '1';
-                    element.style.transform = 'translateY(0)';
-                }
+            elements.forEach(el => {
+                el.style.opacity = '0';
+                el.style.transform = 'translateY(30px)';
+                el.style.transition = 'all 0.6s ease';
             });
-        }
 
-        // Initialize scroll animations
-        document.addEventListener('DOMContentLoaded', function() {
-            const elements = document.querySelectorAll('.feature-card, .tech-badge');
-            elements.forEach(element => {
-                element.style.opacity = '0';
-                element.style.transform = 'translateY(30px)';
-                element.style.transition = 'all 0.6s ease';
-            });
-            
+            function animateOnScroll() {
+                elements.forEach(el => {
+                    const top = el.getBoundingClientRect().top;
+                    if (top < window.innerHeight - 150) {
+                        el.style.opacity = '1';
+                        el.style.transform = 'translateY(0)';
+                    }
+                });
+            }
+
             window.addEventListener('scroll', animateOnScroll);
-            animateOnScroll(); // Initial check
+            animateOnScroll();
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'991693afe0d9416f',t:'MTc2MDk0Mjk4My4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>
