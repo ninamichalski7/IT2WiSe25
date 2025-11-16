@@ -137,6 +137,14 @@
 
         <label>Empfindlichkeit: <span id="sensVal">1.0</span></label>
         <input type="range" id="sensitivity" min="0.2" max="3" step="0.05" value="1.0">
+		
+		<label>Genre:</label>
+	<select id="genreSelect">
+	  <option value="classic">Klassik</option>
+	  <option value="rock">Rock / Metal</option>
+	  <option value="electro">Elektronisch</option>
+	  <option value="ambient">Ambient</option>
+	</select>
       </div>
     </div>
   </section>
@@ -213,21 +221,78 @@
       leafGroup.style.transform='translate(100px,110px) rotate(0) scale(1)';
       bars.forEach(b=>b.style.height='8px');
     }
+	// GENRE PARAMETER
+	const GENRE = {
+	  classic: {
+		growth: 0.4,
+		wobble: 0.2,
+		colorA: "#98edc1",
+		colorB: "#52b5e6"
+	  },
+	  rock: {
+		growth: 1.2,
+		wobble: 1.4,
+		colorA: "#28ff00",
+		colorB: "#005eff"
+	  },
+	  electro: {
+		growth: 0.9,
+		wobble: 1.8,
+		colorA: "#ff00ff",
+		colorB: "#00ffff"
+	  },
+	  ambient: {
+		growth: 0.2,
+		wobble: 0.1,
+		colorA: "#d7ffb2",
+		colorB: "#9edbb7"
+	  }
+	};
+
+	let currentGenre = "classic";
+	document.getElementById("genreSelect").onchange = (e)=>{
+	  currentGenre = e.target.value;
+	  applyGenreColors(currentGenre);
+	};
+	  
+		  function applyGenreColors(genre){
+	  const g = document.querySelector('#g1');
+	  g.children[0].setAttribute("stop-color", GENRE[genre].colorA);
+	  g.children[1].setAttribute("stop-color", GENRE[genre].colorB);
+	}
+
 
     function animate(){
-      rafId = requestAnimationFrame(animate);
-      analyser.getByteFrequencyData(dataArray);
-      let avg = dataArray.reduce((a,b)=>a+b,0)/dataArray.length/255;
-      const amplitude = Math.min(1, avg * parseFloat(sensitivity.value) * 1.5);
-      const rotate = (amplitude * 32) - 16;
-      const swayX = Math.sin(Date.now()/500)*(8+amplitude*22);
-      const scale = 1 + amplitude * 0.35;
-      leafGroup.style.transform = `translate(${100+swayX}px,${110-amplitude*18}px) rotate(${rotate}deg) scale(${scale})`;
-      const step = Math.floor(dataArray.length/BAR_COUNT);
-      for(let i=0;i<BAR_COUNT;i++){
-        const val = dataArray[i*step];
-        bars[i].style.height = Math.max(6,(val/255)*80)+'px';
-      }
+  rafId = requestAnimationFrame(animate);
+
+  analyser.getByteFrequencyData(dataArray);
+
+  let avg = dataArray.reduce((a,b)=>a+b,0)/dataArray.length/255;
+  const baseAmp = avg * parseFloat(sensitivity.value);
+
+  // GENRE-MODIFIER
+  const g = GENRE[currentGenre];
+  const amplitude = Math.min(1, baseAmp * g.growth * 1.4);
+
+  // Bewegungscharakter
+  const wobble = g.wobble * Math.sin(Date.now() / (250 + g.wobble*40));
+
+  // Wachstum/Bewegung berechnen
+  const rotate = (amplitude * 32 * g.wobble) - 16;
+  const swayX = wobble * 12;
+  const scale = 1 + amplitude * (0.25 + g.growth * 0.2);
+  const up = amplitude * (10 + g.growth * 16);
+
+  // Transform anwenden
+  leafGroup.style.transform =
+    `translate(${100 + swayX}px, ${110 - up}px) rotate(${rotate}deg) scale(${scale})`;
+
+  // Bars (FFT)
+  const step = Math.floor(dataArray.length/BAR_COUNT);
+  for(let i=0;i<BAR_COUNT;i++){
+    const val = dataArray[i*step];
+    bars[i].style.height = Math.max(6,(val/255)*80)+'px';
+  }
     }
 
     playBtn.onclick = async ()=>{
