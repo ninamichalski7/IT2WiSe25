@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>About – Synth Garden</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <div class="particles" id="particles"></div>
+
+  <header>
+    <nav class="navbar">
+      <div class="nav-container">
+        <div class="nav-logo">Synth Garden</div>
+        <ul class="nav-links">
+          <li><a href="index.html#start">Startseite</a></li>
+          <li><a href="index.html#experience">Experience</a></li>
+          <li><a href="about.html" class="active">About</a></li>
+          <li><a href="controls.html">Controls</a></li>
+        </ul>
+      </div>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="hero-section" style="padding-top:20px;">
+      <h1 style="color:#86efac; margin-bottom:20px;">Über Synth Garden</h1>
+      <p class="description">
+        Synth Garden ist ein experimentelles Audio-Visualisierungsprojekt, das Klang in eine organische,
+        poetische Welt übersetzt. Jeder Ton lässt Pflanzen wachsen, jeder Beat verändert ihre Form und jede
+        Harmonie taucht sie in neue Farben.
+      </p>
+    </section>
+
+    <section class="features" style="margin-top:40px;">
+      <div class="feature-card">
+        <span class="feature-icon">🌿</span>
+        <h3>Vision</h3>
+        <p>
+          Wir wollten Klang erfahrbar machen – nicht nur hörbar. Synth Garden ist ein digitaler Naturraum,
+          in dem Musik lebendig wird.
+        </p>
+      </div>
+
+      <div class="feature-card">
+        <span class="feature-icon">🧬</span>
+        <h3>Technik</h3>
+        <p>
+          Web Audio API + SVG-Manipulation + Frequenzanalyse ergeben ein generatives System,
+          das live auf Musik reagiert.
+        </p>
+      </div>
+
+      <div class="feature-card">
+        <span class="feature-icon">🎨</span>
+        <h3>Design</h3>
+        <p>
+          Ein ruhiges, träumerisches UI, inspiriert von Natur, Wachstum und Synthwave-Ästhetik.
+        </p>
+      </div>
+    </section>
+
+    <section style="margin-top:60px; text-align:center;">
+      <h2 style="color:#a7f3d0;">Unser Team</h2>
+      <p class="description">
+        Ein interdisziplinäres Projekt aus Mediendesign, Webentwicklung und Klangforschung.
+      </p>
+    </section>
+  </main>
+
+  <footer>
+    <p>&copy; 2025 Synth Garden – Eine interaktive Klang-Visualisierung</p>
+  </footer>
+
+  <script>
+    function createParticles() {
+      const particlesContainer = document.getElementById('particles');
+      for (let i = 0; i < 40; i++) {
+        const p = document.createElement('div');
+        p.className = 'particle';
+        p.style.left = Math.random() * 100 + '%';
+        p.style.top = Math.random() * 100 + '%';
+        p.style.animationDelay = Math.random() * 6 + 's';
+        p.style.animationDuration = (4 + Math.random() * 4) + 's';
+        particlesContainer.appendChild(p);
+      }
+    }
+    document.addEventListener('DOMContentLoaded', createParticles);
+  </script>
+</body>
+</html>
