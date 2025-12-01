@@ -77,14 +77,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (stream) { stream.getTracks().forEach(t => t.stop()); }
     leafGroup.style.transform = 'translate(100px,110px) rotate(0) scale(1)';
     bars.forEach(b => b.style.height = '8px');
+    document.getElementById("genreDetected").textContent = "–";
   }
 
   // GENRE Parameter
   const GENRE = {
     classic: { growth: 0.4, wobble: 0.2, colorA: "#98edc1", colorB: "#52b5e6" },
+    hiphop:  { growth: 1.0, wobble: 1.2, colorA: "#ff8800", colorB: "#ff0044" },
+    techno:  { growth: 0.9, wobble: 1.8, colorA: "#ff00ff", colorB: "#00ffff" },
     rock:    { growth: 1.2, wobble: 1.4, colorA: "#28ff00", colorB: "#005eff" },
-    electro: { growth: 0.9, wobble: 1.8, colorA: "#ff00ff", colorB: "#00ffff" },
-    ambient: { growth: 0.2, wobble: 0.1, colorA: "#d7ffb2", colorB: "#9edbb7" }
+    pop:     { growth: 0.7, wobble: 0.8, colorA: "#ffd700", colorB: "#ff69b4" }
   };
 
   let currentGenre = "classic";
@@ -99,14 +101,65 @@ document.addEventListener('DOMContentLoaded', () => {
     g.children[1].setAttribute("stop-color", GENRE[genre].colorB);
   }
 
+  // --- Einfaches BPM & Genre Setup ---
+  let beatHistory = [];
+  let lastPeakTime = 0;
+
+  function estimateBPM() {
+    if (beatHistory.length < 2) return 0;
+    const diffs = [];
+    for (let i = 1; i < beatHistory.length; i++) {
+      diffs.push(beatHistory[i] - beatHistory[i-1]);
+    }
+    const avgDiff = diffs.reduce((a,b)=>a+b,0)/diffs.length;
+    return 60 / avgDiff; // BPM
+  }
+
+  function detectBeat(avgAmp) {
+    const now = audioCtx.currentTime;
+    if(avgAmp > 0.25 && (now - lastPeakTime) > 0.25) {
+      lastPeakTime = now;
+      beatHistory.push(now);
+      if(beatHistory.length > 20) beatHistory.shift();
+    }
+  }
+
+  function classifyGenre(bpm, spectrum) {
+    // einfache spektrale Schätzungen
+    let bass = 0, mid = 0, high = 0;
+    const len = spectrum.length;
+    for (let i = 0; i < len; i++) {
+      const freq = i * (audioCtx.sampleRate / 2) / len;
+      if (freq < 200) bass += spectrum[i];
+      else if (freq < 2000) mid += spectrum[i];
+      else high += spectrum[i];
+    }
+    const total = bass + mid + high;
+    bass /= total; mid /= total; high /= total;
+
+    if (bpm < 90 && mid > bass && high < 0.2) return "classic";
+    if (bass > 0.45 && bpm >= 70 && bpm <= 110) return "hiphop";
+    if (bpm > 120 && bass < 0.35 && high > 0.25) return "techno";
+    if (mid > 0.45 && bpm >= 100 && bpm <= 150) return "rock";
+    return "pop"; // fallback
+  }
+
   function animate() {
     rafId = requestAnimationFrame(animate);
 
     analyser.getByteFrequencyData(dataArray);
 
     let avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length / 255;
-    const baseAmp = avg * parseFloat(sensitivity.value);
+    detectBeat(avg);
+    const currentBpm = estimateBPM();
 
+    // Genre erkennen
+    const detectedGenre = classifyGenre(currentBpm, dataArray);
+    document.getElementById("genreDetected").textContent = detectedGenre;
+    currentGenre = detectedGenre;
+    applyGenreColors(currentGenre);
+
+    const baseAmp = avg * parseFloat(sensitivity.value);
     const g = GENRE[currentGenre];
     const amplitude = Math.min(1, baseAmp * g.growth * 1.4);
     const wobble = g.wobble * Math.sin(Date.now() / (250 + g.wobble * 40));
