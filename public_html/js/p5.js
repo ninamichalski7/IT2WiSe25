@@ -1,4 +1,4 @@
-// p5.js mit WebRTC-Streaming (Malina)
+// p5.js mit WebRTC-Streaming 
 let mic, fft;
 let leaves = [];
 let particles = [];
@@ -11,13 +11,13 @@ function setup() {
   createCanvas(windowWidth, windowHeight);
   angleMode(DEGREES);
 
-  // Audio einrichten (Kasia)
+  // Audio einrichten 
   mic = new p5.AudioIn();
   mic.start();
   fft = new p5.FFT();
   fft.setInput(mic);
 
-  // Blätter erstellen (Kasia)
+  // Blätter erstellen 
   for (let i = 0; i < NUM_LEAVES; i++) {
     leaves.push({
       x: random(width * 0.2, width * 0.8),
@@ -28,7 +28,7 @@ function setup() {
     });
   }
 
-  // Partikel erstellen (Kasia)
+  // Partikel erstellen 
   for (let i = 0; i < NUM_PARTICLES; i++) {
     particles.push({
       x: random(width),
@@ -39,7 +39,7 @@ function setup() {
     });
   }
 
-  // WebRTC einrichten mit p5LiveMedia (Malina)
+  // WebRTC einrichten mit p5LiveMedia 
   liveMedia = new p5LiveMedia(this, "CAPTURE", null, "https://your-signaling-server.com"); 
   liveMedia.on('stream', gotStream); // Callback, wenn ein Stream empfangen wird (für Zuschauer)
 
@@ -50,7 +50,7 @@ function setup() {
 function draw() {
   background(240, 240, 255, 50);
 
-  // FFT-Daten holen (Kasia)
+  // FFT-Daten holen 
   let spectrum = fft.analyze();
   let bass = fft.getEnergy("bass"); // Wert von 0-255
 
@@ -64,7 +64,7 @@ function draw() {
     ellipse(p.x, p.y, p.size);
   });
 
-  // Blätter zeichnen und auf Audio reagieren (Kasia)
+  // Blätter zeichnen und auf Audio reagieren 
   leaves.forEach(l => {
     push();
     translate(l.x, l.y);
@@ -81,7 +81,7 @@ function draw() {
   // Der Canvas wird automatisch als Stream gesendet via p5LiveMedia
 }
 
-// Callback für empfangenen Stream (Malina)
+// Callback für empfangenen Stream 
 function gotStream(stream, id) {
   remoteVideo = createVideo();
   remoteVideo.elt.srcObject = stream; // Zeige den empfangenen Stream (Audio + Visuals)
@@ -90,7 +90,7 @@ function gotStream(stream, id) {
   remoteVideo.play();
 }
 
-// Fenstergröße anpassen (Kasia)
+// Fenstergröße anpassen 
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
 }
