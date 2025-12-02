@@ -1,22 +1,23 @@
-// p5-sketch.js
-
+// p5.js mit WebRTC-Streaming (Malina)
 let mic, fft;
 let leaves = [];
 let particles = [];
 const NUM_LEAVES = 5;
 const NUM_PARTICLES = 50;
+let liveMedia; 
+let remoteVideo; // Für den Stream 
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
   angleMode(DEGREES);
-  
-  // Audio einrichten
+
+  // Audio einrichten (Kasia)
   mic = new p5.AudioIn();
   mic.start();
   fft = new p5.FFT();
   fft.setInput(mic);
 
-  // Blätter erstellen
+  // Blätter erstellen (Kasia)
   for (let i = 0; i < NUM_LEAVES; i++) {
     leaves.push({
       x: random(width * 0.2, width * 0.8),
@@ -27,7 +28,7 @@ function setup() {
     });
   }
 
-  // Partikel erstellen
+  // Partikel erstellen (Kasia)
   for (let i = 0; i < NUM_PARTICLES; i++) {
     particles.push({
       x: random(width),
@@ -37,16 +38,23 @@ function setup() {
       color: [random(100, 255), random(100, 255), random(100, 255), 150]
     });
   }
+
+  // WebRTC einrichten mit p5LiveMedia (Malina)
+  liveMedia = new p5LiveMedia(this, "CAPTURE", null, "https://your-signaling-server.com"); 
+  liveMedia.on('stream', gotStream); // Callback, wenn ein Stream empfangen wird (für Zuschauer)
+
+  // Starte das Streaming des Canvas + Audio
+  liveMedia.addLocalMedia({ audio: true, video: { facingMode: "user" } }); // Hier audio: true für Mikrofon/Synth
 }
 
 function draw() {
   background(240, 240, 255, 50);
 
-  // FFT-Daten holen
+  // FFT-Daten holen (Kasia)
   let spectrum = fft.analyze();
   let bass = fft.getEnergy("bass"); // Wert von 0-255
 
-  // Partikel zeichnen
+  // Partikel zeichnen (Kasia)
   particles.forEach(p => {
     p.y -= p.speed;
     p.x += sin(frameCount * 0.05) * 1.5;
@@ -56,7 +64,7 @@ function draw() {
     ellipse(p.x, p.y, p.size);
   });
 
-  // Blätter zeichnen und auf Audio reagieren
+  // Blätter zeichnen und auf Audio reagieren (Kasia)
   leaves.forEach(l => {
     push();
     translate(l.x, l.y);
@@ -69,10 +77,20 @@ function draw() {
     endShape(CLOSE);
     pop();
   });
+
+  // Der Canvas wird automatisch als Stream gesendet via p5LiveMedia
 }
 
-// Fenstergröße anpassen
+// Callback für empfangenen Stream (Malina)
+function gotStream(stream, id) {
+  remoteVideo = createVideo();
+  remoteVideo.elt.srcObject = stream; // Zeige den empfangenen Stream (Audio + Visuals)
+  remoteVideo.size(640, 480); // Passe an
+  remoteVideo.position(0, 0); // Positioniere im Sketch
+  remoteVideo.play();
+}
+
+// Fenstergröße anpassen (Kasia)
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
 }
-// JavaScript Document
