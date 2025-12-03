@@ -81,13 +81,40 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // GENRE Parameter
-  const GENRE = {
-    classic: { growth: 0.4, wobble: 0.2, colorA: "#98edc1", colorB: "#52b5e6" },
-    hiphop:  { growth: 1.0, wobble: 1.2, colorA: "#ff8800", colorB: "#ff0044" },
-    techno:  { growth: 0.9, wobble: 1.8, colorA: "#ff00ff", colorB: "#00ffff" },
-    rock:    { growth: 1.2, wobble: 1.4, colorA: "#28ff00", colorB: "#005eff" },
-    pop:     { growth: 0.7, wobble: 0.8, colorA: "#ffd700", colorB: "#ff69b4" }
-  };
+	 const GENRE = {
+	  classic: { growth: 0.4, wobble: 0.2, colorA: "#98edc1", colorB: "#52b5e6" },
+	  jazz:    { growth: 0.6, wobble: 0.4, colorA: "#ffcf9f", colorB: "#6aa3ff" },
+	  rock:    { growth: 1.2, wobble: 1.4, colorA: "#28ff00", colorB: "#005eff" },
+	  techno:  { growth: 0.9, wobble: 1.8, colorA: "#ff00ff", colorB: "#00ffff" },
+	  hiphop:  { growth: 1.0, wobble: 1.2, colorA: "#ff8800", colorB: "#ff0044" }
+	};
+	
+	// SONGS FÜR GENRES
+	const GENRE_SONGS = {
+	  classic: "musik/(Klassik)Air-on-a -g-string.mp3",
+	  jazz:    "musik/(Jazz)Pufino - Fantasy (freetouse.com).mp3",
+	  rock:    "musik/(Rock)Dagored - Wall Of Sound (freetouse.com).mp3",
+	  techno:  "musik/(Techno)Aylex - Evolution (freetouse.com).mp3",
+	  hiphop:  "musik/(Hip Hop)Aylex - Good Days (freetouse.com).mp3"
+	};
+	
+	function loadGenreSong() {
+	  const song = GENRE_SONGS[currentGenre];
+	  if (!song) return;
+
+	  audioElem = new Audio(song);
+	  audioElem.loop = true;
+
+	  document.getElementById("genreDetected").textContent = currentGenre;
+	}
+
+document.getElementById("genreSelect").addEventListener("change", () => {
+  currentGenre = genreSelect.value;
+  applyGenreColors(currentGenre);
+  loadGenreSong();
+});
+
+
 
   let currentGenre = "classic";
   document.getElementById("genreSelect").onchange = (e) => {
@@ -124,25 +151,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function classifyGenre(bpm, spectrum) {
-    // einfache spektrale Schätzungen
-    let bass = 0, mid = 0, high = 0;
-    const len = spectrum.length;
-    for (let i = 0; i < len; i++) {
-      const freq = i * (audioCtx.sampleRate / 2) / len;
-      if (freq < 200) bass += spectrum[i];
-      else if (freq < 2000) mid += spectrum[i];
-      else high += spectrum[i];
-    }
-    const total = bass + mid + high;
-    bass /= total; mid /= total; high /= total;
+	  function classifyGenre(bpm, spectrum) {
+	  let bass = 0, mid = 0, high = 0;
+	  const len = spectrum.length;
 
-    if (bpm < 90 && mid > bass && high < 0.2) return "classic";
-    if (bass > 0.45 && bpm >= 70 && bpm <= 110) return "hiphop";
-    if (bpm > 120 && bass < 0.35 && high > 0.25) return "techno";
-    if (mid > 0.45 && bpm >= 100 && bpm <= 150) return "rock";
-    return "pop"; // fallback
-  }
+	  for (let i = 0; i < len; i++) {
+		const freq = i * (audioCtx.sampleRate / 2) / len;
+		if (freq < 200) bass += spectrum[i];
+		else if (freq < 2000) mid += spectrum[i];
+		else high += spectrum[i];
+	  }
+
+	  const total = bass + mid + high;
+	  bass /= total; mid /= total; high /= total;
+
+	  if (bpm < 90 && mid > bass && high < 0.2) return "classic";
+	  if (bass > 0.45 && bpm >= 70 && bpm <= 110) return "hiphop";
+	  if (bpm > 120 && bass < 0.35 && high > 0.25) return "techno";
+	  if (mid > 0.45 && bpm >= 100 && bpm <= 150) return "rock";
+	  if (bpm > 70 && bpm < 160 && mid > 0.40 && high < 0.35 && bass < 0.45) return "jazz";
+
+	  return "jazz"; // fallback
+	}
 
   function animate() {
     rafId = requestAnimationFrame(animate);
@@ -179,13 +209,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Event-Listener für Buttons & Sensitivity
   playBtn.onclick = async () => {
-    if (fileRadio.checked) {
-      if (!fileInput.files[0]) return alert('Bitte Audiodatei wählen.');
-      await startFromFile(fileInput.files[0]);
-    } else {
-      await startFromMic();
-    }
-  };
+
+  // Quelle: Datei
+  if (fileRadio.checked) {
+    if (!fileInput.files[0]) return alert('Bitte Audiodatei wählen.');
+    await startFromFile(fileInput.files[0]);
+    return;
+  }
+
+  // Quelle: Mikrofon
+  if (micRadio.checked) {
+    await startFromMic();
+    return;
+  }
+
+  // Quelle: GENRE (wenn kein Radio aktiviert)
+  // → Genre-Song abspielen
+  loadGenreSong();
+  stopAll();
+  initAudioContext();
+
+  sourceNode = audioCtx.createMediaElementSource(audioElem);
+  sourceNode.connect(analyser);
+  analyser.connect(audioCtx.destination);
+
+  audioElem.play();
+  animate();
+};
+
 
   stopBtn.onclick = stopAll;
   sensitivity.oninput = () => sensVal.textContent = sensitivity.value;
