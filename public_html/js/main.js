@@ -1,6 +1,7 @@
 // main.js
 
 document.addEventListener('DOMContentLoaded', () => {
+	
 
   // === Floating Particles auf der Startseite ===
   const particlesContainer = document.getElementById('particles');
@@ -20,7 +21,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const fileInput = document.getElementById('fileInput');
   const sensitivity = document.getElementById('sensitivity');
   const sensVal = document.getElementById('sensVal');
-  const micRadio = document.getElementById('micRadio');
   const fileRadio = document.getElementById('fileRadio');
   const leafGroup = document.getElementById('leafGroup');
   const barsContainer = document.getElementById('bars');
@@ -43,8 +43,12 @@ document.addEventListener('DOMContentLoaded', () => {
       analyser.fftSize = 2048;
       dataArray = new Uint8Array(analyser.frequencyBinCount);
     }
+	  gainNode = audioCtx.createGain();
+	  gainNode.gain.value = 1; // Start-Lautstärke
+
   }
 
+	
   async function startFromFile(file) {
     stopAll();
     initAudioContext();
@@ -54,22 +58,12 @@ document.addEventListener('DOMContentLoaded', () => {
     await audioElem.play();
     sourceNode = audioCtx.createMediaElementSource(audioElem);
     sourceNode.connect(analyser);
-    analyser.connect(audioCtx.destination);
+	analyser.connect(gainNode);
+	gainNode.connect(audioCtx.destination);
+
     animate();
   }
 
-  async function startFromMic() {
-    stopAll();
-    initAudioContext();
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      sourceNode = audioCtx.createMediaStreamSource(stream);
-      sourceNode.connect(analyser);
-      animate();
-    } catch (e) {
-      alert('Mikrofonzugriff verweigert.');
-    }
-  }
 
   function stopAll() {
     if (rafId) cancelAnimationFrame(rafId);
@@ -179,15 +173,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Event-Listener für Buttons & Sensitivity
   playBtn.onclick = async () => {
-    if (fileRadio.checked) {
-      if (!fileInput.files[0]) return alert('Bitte Audiodatei wählen.');
-      await startFromFile(fileInput.files[0]);
-    } else {
-      await startFromMic();
-    }
-  };
+  if (!fileInput.files[0]) return alert('Bitte Audiodatei wählen.');
+  await startFromFile(fileInput.files[0]);
+};
 
   stopBtn.onclick = stopAll;
   sensitivity.oninput = () => sensVal.textContent = sensitivity.value;
+	
+	const volume = document.getElementById('volume');
+	const volVal = document.getElementById('volVal');
+	
+	volume.oninput = () => {
+  gainNode.gain.value = volume.value;
+  volVal.textContent = Number(volume.value).toFixed(2);
+};
 
+	
 });
