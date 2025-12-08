@@ -13,11 +13,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // === 2. VISUELLE PARAMETER FÜR DIE GENRES ===
   const GENRE = {
-    classic: { growth: 0.4, wobble: 0.2, colorA: "#98edc1", colorB: "#52b5e6" }, // Sanftes Blau-Grün
-    jazz:    { growth: 0.6, wobble: 0.5, colorA: "#e6c200", colorB: "#6a0dad" }, // Gold & Lila (Smooth)
-    rock:    { growth: 1.2, wobble: 1.4, colorA: "#28ff00", colorB: "#005eff" }, // Energievolles Grün-Blau
-    techno:  { growth: 0.9, wobble: 1.8, colorA: "#ff00ff", colorB: "#00ffff" }, // Neon Pink-Cyan
-    hiphop:  { growth: 1.0, wobble: 1.2, colorA: "#ff8800", colorB: "#ff0044" }  // Orange-Rot
+    classic: { growth: 0.4, wobble: 0.2, colorA: "#98edc1", colorB: "#52b5e6" }, 
+    jazz:    { growth: 0.6, wobble: 0.5, colorA: "#e6c200", colorB: "#6a0dad" }, 
+    rock:    { growth: 1.2, wobble: 1.4, colorA: "#28ff00", colorB: "#005eff" }, 
+    techno:  { growth: 0.9, wobble: 1.8, colorA: "#ff00ff", colorB: "#00ffff" }, 
+    hiphop:  { growth: 1.0, wobble: 1.2, colorA: "#ff8800", colorB: "#ff0044" }  
   };
 
 
@@ -35,16 +35,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // === Blatt-Demo Setup ===
   const playBtn = document.getElementById('playBtn');
-  const stopBtn = document.getElementById('stopBtn');
+  const pauseBtn = document.getElementById('stopBtn'); // Umbenannt, aber ID behalten
+  const resetBtn = document.getElementById('resetBtn'); // NEU: für kompletten Stop/Reset
   const fileInput = document.getElementById('fileInput');
   const sensitivity = document.getElementById('sensitivity');
   const sensVal = document.getElementById('sensVal');
-  const fileRadio = document.getElementById('fileRadio'); // Radio Button
-  const genreSelect = document.getElementById('genreSelect'); // Dropdown
+  const fileRadio = document.getElementById('fileRadio'); 
+  const genreSelect = document.getElementById('genreSelect'); 
   const leafGroup = document.getElementById('leafGroup');
   const barsContainer = document.getElementById('bars');
   const volume = document.getElementById('volume');
   const volVal = document.getElementById('volVal');
+  // NEU: Fortschrittsanzeigen
+  const currentTimeSpan = document.getElementById('currentTime');
+  const durationTimeSpan = document.getElementById('durationTime');
+  const progressBar = document.getElementById('progressBar');
 
   let audioCtx, analyser, dataArray, sourceNode, audioElem, rafId, stream, gainNode;
   const BAR_COUNT = 24;
@@ -56,6 +61,15 @@ document.addEventListener('DOMContentLoaded', () => {
     barsContainer.appendChild(b);
   }
   const bars = Array.from(document.querySelectorAll('.bar'));
+  
+  // NEU: Zeitformatierung (z.B. 3:45)
+  function formatTime(seconds) {
+    if (isNaN(seconds) || seconds === Infinity) return '0:00';
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.floor(seconds % 60);
+    return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
+  }
+
 
   function initAudioContext() {
     if (!audioCtx) {
@@ -68,61 +82,76 @@ document.addEventListener('DOMContentLoaded', () => {
       gainNode.gain.value = volume.value;
     }
   }
-
-  // Start über Datei-Upload
-  async function startFromFile(file) {
-    stopAll();
-    initAudioContext();
-    audioElem = new Audio();
-    audioElem.loop = true;
-    audioElem.src = URL.createObjectURL(file);
-    await audioElem.play();
-    sourceNode = audioCtx.createMediaElementSource(audioElem);
-    setupAudioChain();
-    animate();
-  }
-
-  // Start über Genre-Auswahl
-  async function startFromGenre(url) {
-    stopAll();
-    initAudioContext();
-    audioElem = new Audio();
-    audioElem.loop = true;
-    audioElem.src = url;
-    
-    await audioElem.play();
-    sourceNode = audioCtx.createMediaElementSource(audioElem);
-    setupAudioChain();
-    animate();
-  }
-
-  function setupAudioChain() {
-    sourceNode.connect(analyser);
-    analyser.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-  }
-
+  
+  // NEU: Setzt Audio und Visuals komplett zurück
   function stopAll() {
     if (rafId) cancelAnimationFrame(rafId);
     if (audioElem) { 
       audioElem.pause(); 
       audioElem.src = ''; 
     }
-    // Falls Mikronfon-Stream aktiv war
     if (stream) { stream.getTracks().forEach(t => t.stop()); }
 
-    // Reset Visuals
+    // WICHTIG: Visuals und Anzeigen zurücksetzen
     leafGroup.style.transform = 'translate(100px,110px) rotate(0) scale(1)';
     bars.forEach(b => b.style.height = '8px');
+    currentTimeSpan.textContent = '0:00';
+    durationTimeSpan.textContent = '0:00';
+    progressBar.value = 0;
     document.getElementById("genreDetected").textContent = "–";
+    
+    // Setze Genre auf Default (classic) oder leer
+    currentGenre = 'classic'; 
+    applyGenreColors(currentGenre);
   }
 
+  // Zentralisierte Audio-Setup-Funktion
+  function setupAudio(url, isFile = false) {
+    stopAll(); // Stoppt vorherigen Track und setzt Visuals zurück
+
+    initAudioContext();
+    audioElem = new Audio();
+    audioElem.loop = true;
+    audioElem.src = isFile ? URL.createObjectURL(url) : url;
+    
+    if (!isFile) {
+      audioElem.onerror = () => alert(`Konnte Datei nicht finden: ${url}\nBitte prüfe den Ordner "musik" und die Dateinamen!`);
+    }
+    
+    // Fortschrittsanzeige initialisieren
+    audioElem.onloadedmetadata = () => {
+      durationTimeSpan.textContent = formatTime(audioElem.duration);
+      progressBar.max = audioElem.duration;
+      audioElem.play();
+    };
+
+    // NEU: Reset, wenn Song zu Ende (wichtig, falls loop=false)
+    audioElem.onended = () => {
+      stopAll(); 
+      alert("Song beendet.");
+    };
+
+    sourceNode = audioCtx.createMediaElementSource(audioElem);
+    sourceNode.connect(analyser);
+    analyser.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    
+    animate();
+  }
+
+  async function startFromFile(file) {
+      setupAudio(file, true);
+  }
+  async function startFromGenre(url) {
+      setupAudio(url, false);
+  }
+  
   // === GENRE LOGIK ===
   let currentGenre = "classic";
 
   // Wenn man im Dropdown etwas auswählt:
   genreSelect.onchange = (e) => {
-    // 1. Setze Modus auf "Genre" (visuell kein Radio-Button, aber logisch)
+    // 1. Setze Modus auf "Genre"
     if(fileRadio) fileRadio.checked = false; 
     
     // 2. Genre setzen
@@ -148,7 +177,7 @@ document.addEventListener('DOMContentLoaded', () => {
   applyGenreColors(currentGenre);
 
 
-  // === ANALYSE LOGIK (BPM etc.) ===
+  // === ANALYSE LOGIK & ANIMATION ===
   let beatHistory = [];
   let lastPeakTime = 0;
 
@@ -171,8 +200,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Automatische Erkennung (Nur relevant, wenn eigene Datei hochgeladen wird)
   function classifyGenreByData(bpm, spectrum) {
+    // ... (Logik zur Genre-Erkennung, bleibt unverändert) ...
     let bass = 0, mid = 0, high = 0;
     const len = spectrum.length;
     for (let i = 0; i < len; i++) {
@@ -184,7 +213,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const total = bass + mid + high;
     bass /= total; mid /= total; high /= total;
 
-    // Einfache Heuristik für die 5 Genres
     if (bpm < 90 && high < 0.2) return "classic"; 
     if (bpm >= 70 && bpm <= 120 && mid > 0.4) return "jazz"; 
     if (bpm > 80 && bpm < 110 && bass > 0.45) return "hiphop"; 
@@ -195,56 +223,92 @@ document.addEventListener('DOMContentLoaded', () => {
   function animate() {
     rafId = requestAnimationFrame(animate);
 
-    analyser.getByteFrequencyData(dataArray);
+    if (audioElem && !audioElem.paused) {
+      // NEU: Aktualisiere Fortschrittsanzeige
+      currentTimeSpan.textContent = formatTime(audioElem.currentTime);
+      progressBar.value = audioElem.currentTime;
+      
+      analyser.getByteFrequencyData(dataArray);
 
-    let avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length / 255;
-    detectBeat(avg);
-    const currentBpm = estimateBPM();
+      let avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length / 255;
+      detectBeat(avg);
+      const currentBpm = estimateBPM();
 
-    // Nur wenn WIRKLICH eine Datei hochgeladen ist (fileInput aktiv), versuchen wir zu raten.
-    if (fileRadio.checked) {
-       const detected = classifyGenreByData(currentBpm, dataArray);
-       document.getElementById("genreDetected").textContent = detected + " (erkannt)";
-    }
+      // Nur wenn WIRKLICH eine Datei hochgeladen ist, raten wir das Genre und zeigen es an.
+      if (fileRadio.checked) {
+        const detected = classifyGenreByData(currentBpm, dataArray);
+        document.getElementById("genreDetected").textContent = detected + " (erkannt)";
+      }
 
-    // Visuelle Parameter abrufen
-    const g = GENRE[currentGenre] || GENRE.classic;
-    
-    const baseAmp = avg * parseFloat(sensitivity.value);
-    const amplitude = Math.min(1, baseAmp * g.growth * 1.4);
-    
-    // Wobble-Berechnung
-    const timeFactor = Date.now() / (250 + g.wobble * 40);
-    const wobble = g.wobble * Math.sin(timeFactor);
-    
-    const rotate = (amplitude * 32 * g.wobble) - 16;
-    const swayX = wobble * 12;
-    const scale = 1 + amplitude * (0.25 + g.growth * 0.2);
-    const up = amplitude * (10 + g.growth * 16);
+      // Visuelle Parameter abrufen
+      const g = GENRE[currentGenre] || GENRE.classic;
+      
+      const baseAmp = avg * parseFloat(sensitivity.value);
+      const amplitude = Math.min(1, baseAmp * g.growth * 1.4);
+      
+      const timeFactor = Date.now() / (250 + g.wobble * 40);
+      const wobble = g.wobble * Math.sin(timeFactor);
+      
+      const rotate = (amplitude * 32 * g.wobble) - 16;
+      const swayX = wobble * 12;
+      const scale = 1 + amplitude * (0.25 + g.growth * 0.2);
+      const up = amplitude * (10 + g.growth * 16);
 
-    leafGroup.style.transform = `translate(${100 + swayX}px, ${110 - up}px) rotate(${rotate}deg) scale(${scale})`;
+      leafGroup.style.transform = `translate(${100 + swayX}px, ${110 - up}px) rotate(${rotate}deg) scale(${scale})`;
 
-    // Bars visualisieren
-    const step = Math.floor(dataArray.length / BAR_COUNT);
-    for (let i = 0; i < BAR_COUNT; i++) {
-      const val = dataArray[i * step];
-      bars[i].style.height = Math.max(6, (val / 255) * 80) + 'px';
+      // Bars visualisieren
+      const step = Math.floor(dataArray.length / BAR_COUNT);
+      for (let i = 0; i < BAR_COUNT; i++) {
+        const val = dataArray[i * step];
+        bars[i].style.height = Math.max(6, (val / 255) * 80) + 'px';
+      }
+    } else {
+      // Wenn Musik pausiert ist, Visualisierung einfrieren
+      // Optional: Man könnte die Bars hier auf Null setzen, aber Einfrieren ist dynamischer.
     }
   }
 
   // === BUTTON EVENTS ===
+  // Play/Resume Logik
   playBtn.onclick = async () => {
-    if (!fileInput.files[0]) return alert('Bitte Audiodatei wählen.');
+    // 1. RESUME (wenn pausiert)
+    if (audioElem && audioElem.paused && audioElem.src) {
+      audioElem.play();
+      animate(); // Startet die Animation neu, falls sie gestoppt war
+      return;
+    }
+
+    // 2. START (wenn Datei gewählt)
+    if (fileRadio.checked) {
+      if (!fileInput.files[0]) return alert('Bitte Audiodatei wählen.');
+      genreSelect.value = ""; // Genre-Auswahl neutralisieren
+      await startFromFile(fileInput.files[0]);
+      return;
+    }
     
-    // Zurücksetzen auf Datei-Modus
-    fileRadio.checked = true;
-    genreSelect.value = ""; 
-    
-    await startFromFile(fileInput.files[0]);
+    // 3. START (wenn Genre gewählt, aber noch nichts spielt)
+    if (genreSelect.value && GENRE_SONGS[genreSelect.value]) {
+      currentGenre = genreSelect.value;
+      applyGenreColors(currentGenre);
+      document.getElementById("genreDetected").textContent = currentGenre.toUpperCase();
+      await startFromGenre(GENRE_SONGS[currentGenre]);
+    } else {
+      alert('Bitte wähle ein Genre oder eine Audiodatei.');
+    }
   };
 
-  stopBtn.onclick = stopAll;
+  // Pause Logik
+  pauseBtn.onclick = () => {
+    if (audioElem && !audioElem.paused) {
+      audioElem.pause();
+    }
+  };
   
+  // NEU: Reset Logik für kompletten Stopp
+  resetBtn.onclick = stopAll;
+
+
+  // Weitere Event-Listener
   sensitivity.oninput = () => sensVal.textContent = sensitivity.value;
   
   volume.oninput = () => {
