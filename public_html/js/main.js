@@ -1,7 +1,25 @@
 // main.js
 
 document.addEventListener('DOMContentLoaded', () => {
-	
+
+  // === 1. KONFIGURATION DER GENRE-SONGS ===
+  const GENRE_SONGS = {
+    classic: 'musik/classic.mp3',
+    jazz:    'musik/jazz.mp3',
+    rock:    'musik/rock.mp3',
+    techno:  'musik/techno.mp3',
+    hiphop:  'musik/hiphop.mp3'
+  };
+
+  // === 2. VISUELLE PARAMETER FÜR DIE GENRES ===
+  const GENRE = {
+    classic: { growth: 0.4, wobble: 0.2, colorA: "#98edc1", colorB: "#52b5e6" }, // Sanftes Blau-Grün
+    jazz:    { growth: 0.6, wobble: 0.5, colorA: "#e6c200", colorB: "#6a0dad" }, // Gold & Lila (Smooth)
+    rock:    { growth: 1.2, wobble: 1.4, colorA: "#28ff00", colorB: "#005eff" }, // Energievolles Grün-Blau
+    techno:  { growth: 0.9, wobble: 1.8, colorA: "#ff00ff", colorB: "#00ffff" }, // Neon Pink-Cyan
+    hiphop:  { growth: 1.0, wobble: 1.2, colorA: "#ff8800", colorB: "#ff0044" }  // Orange-Rot
+  };
+
 
   // === Floating Particles auf der Startseite ===
   const particlesContainer = document.getElementById('particles');
@@ -21,11 +39,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const fileInput = document.getElementById('fileInput');
   const sensitivity = document.getElementById('sensitivity');
   const sensVal = document.getElementById('sensVal');
-  const fileRadio = document.getElementById('fileRadio');
+  const fileRadio = document.getElementById('fileRadio'); // Radio Button
+  const genreSelect = document.getElementById('genreSelect'); // Dropdown
   const leafGroup = document.getElementById('leafGroup');
   const barsContainer = document.getElementById('bars');
+  const volume = document.getElementById('volume');
+  const volVal = document.getElementById('volVal');
 
-  let audioCtx, analyser, dataArray, sourceNode, audioElem, rafId, stream;
+  let audioCtx, analyser, dataArray, sourceNode, audioElem, rafId, stream, gainNode;
   const BAR_COUNT = 24;
 
   // Bars erstellen
@@ -42,13 +63,13 @@ document.addEventListener('DOMContentLoaded', () => {
       analyser = audioCtx.createAnalyser();
       analyser.fftSize = 2048;
       dataArray = new Uint8Array(analyser.frequencyBinCount);
+      
+      gainNode = audioCtx.createGain();
+      gainNode.gain.value = volume.value;
     }
-	  gainNode = audioCtx.createGain();
-	  gainNode.gain.value = 1; // Start-Lautstärke
-
   }
 
-	
+  // Start über Datei-Upload
   async function startFromFile(file) {
     stopAll();
     initAudioContext();
@@ -57,45 +78,80 @@ document.addEventListener('DOMContentLoaded', () => {
     audioElem.src = URL.createObjectURL(file);
     await audioElem.play();
     sourceNode = audioCtx.createMediaElementSource(audioElem);
-    sourceNode.connect(analyser);
-	analyser.connect(gainNode);
-	gainNode.connect(audioCtx.destination);
-
+    setupAudioChain();
     animate();
   }
 
+  // Start über Genre-Auswahl
+  async function startFromGenre(url) {
+    stopAll();
+    initAudioContext();
+    audioElem = new Audio();
+    audioElem.loop = true;
+    audioElem.src = url;
+    
+    // Fehler abfangen, falls Datei fehlt (angepasster Text)
+    audioElem.onerror = () => alert(`Konnte Datei nicht finden: ${url}\nBitte prüfe den Ordner "musik" und die Dateinamen!`);
+    
+    await audioElem.play();
+    sourceNode = audioCtx.createMediaElementSource(audioElem);
+    setupAudioChain();
+    animate();
+  }
+
+  function setupAudioChain() {
+    sourceNode.connect(analyser);
+    analyser.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+  }
 
   function stopAll() {
     if (rafId) cancelAnimationFrame(rafId);
-    if (audioElem) { audioElem.pause(); audioElem.src = ''; }
+    if (audioElem) { 
+      audioElem.pause(); 
+      audioElem.src = ''; 
+    }
+    // Falls Mikronfon-Stream aktiv war
     if (stream) { stream.getTracks().forEach(t => t.stop()); }
+
+    // Reset Visuals
     leafGroup.style.transform = 'translate(100px,110px) rotate(0) scale(1)';
     bars.forEach(b => b.style.height = '8px');
     document.getElementById("genreDetected").textContent = "–";
   }
 
-  // GENRE Parameter
-  const GENRE = {
-    classic: { growth: 0.4, wobble: 0.2, colorA: "#98edc1", colorB: "#52b5e6" },
-    hiphop:  { growth: 1.0, wobble: 1.2, colorA: "#ff8800", colorB: "#ff0044" },
-    techno:  { growth: 0.9, wobble: 1.8, colorA: "#ff00ff", colorB: "#00ffff" },
-    rock:    { growth: 1.2, wobble: 1.4, colorA: "#28ff00", colorB: "#005eff" },
-    pop:     { growth: 0.7, wobble: 0.8, colorA: "#ffd700", colorB: "#ff69b4" }
-  };
-
+  // === GENRE LOGIK ===
   let currentGenre = "classic";
-  document.getElementById("genreSelect").onchange = (e) => {
+
+  // Wenn man im Dropdown etwas auswählt:
+  genreSelect.onchange = (e) => {
+    // 1. Setze Modus auf "Genre" (visuell kein Radio-Button, aber logisch)
+    if(fileRadio) fileRadio.checked = false; 
+    
+    // 2. Genre setzen
     currentGenre = e.target.value;
     applyGenreColors(currentGenre);
+    document.getElementById("genreDetected").textContent = currentGenre.toUpperCase(); 
+
+    // 3. Song abspielen
+    const songUrl = GENRE_SONGS[currentGenre];
+    if (songUrl) {
+      startFromGenre(songUrl);
+    }
   };
 
   function applyGenreColors(genre) {
-    const g = document.querySelector('#g1');
-    g.children[0].setAttribute("stop-color", GENRE[genre].colorA);
-    g.children[1].setAttribute("stop-color", GENRE[genre].colorB);
+    const gElement = document.querySelector('#g1');
+    const params = GENRE[genre] || GENRE.classic; 
+    gElement.children[0].setAttribute("stop-color", params.colorA);
+    gElement.children[1].setAttribute("stop-color", params.colorB);
   }
 
-  // --- Einfaches BPM & Genre Setup ---
+  // Initial Farben setzen
+  applyGenreColors(currentGenre);
+
+
+  // === ANALYSE LOGIK (BPM etc.) ===
   let beatHistory = [];
   let lastPeakTime = 0;
 
@@ -106,7 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
       diffs.push(beatHistory[i] - beatHistory[i-1]);
     }
     const avgDiff = diffs.reduce((a,b)=>a+b,0)/diffs.length;
-    return 60 / avgDiff; // BPM
+    return 60 / avgDiff; 
   }
 
   function detectBeat(avgAmp) {
@@ -118,8 +174,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function classifyGenre(bpm, spectrum) {
-    // einfache spektrale Schätzungen
+  // Automatische Erkennung (Nur relevant, wenn eigene Datei hochgeladen wird)
+  function classifyGenreByData(bpm, spectrum) {
     let bass = 0, mid = 0, high = 0;
     const len = spectrum.length;
     for (let i = 0; i < len; i++) {
@@ -131,11 +187,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const total = bass + mid + high;
     bass /= total; mid /= total; high /= total;
 
-    if (bpm < 90 && mid > bass && high < 0.2) return "classic";
-    if (bass > 0.45 && bpm >= 70 && bpm <= 110) return "hiphop";
-    if (bpm > 120 && bass < 0.35 && high > 0.25) return "techno";
-    if (mid > 0.45 && bpm >= 100 && bpm <= 150) return "rock";
-    return "pop"; // fallback
+    // Einfache Heuristik für die 5 Genres
+    if (bpm < 90 && high < 0.2) return "classic"; 
+    if (bpm >= 70 && bpm <= 120 && mid > 0.4) return "jazz"; 
+    if (bpm > 80 && bpm < 110 && bass > 0.45) return "hiphop"; 
+    if (bpm > 120 && high > 0.25) return "techno"; 
+    return "rock"; 
   }
 
   function animate() {
@@ -147,16 +204,22 @@ document.addEventListener('DOMContentLoaded', () => {
     detectBeat(avg);
     const currentBpm = estimateBPM();
 
-    // Genre erkennen
-    const detectedGenre = classifyGenre(currentBpm, dataArray);
-    document.getElementById("genreDetected").textContent = detectedGenre;
-    currentGenre = detectedGenre;
-    applyGenreColors(currentGenre);
+    // Nur wenn WIRKLICH eine Datei hochgeladen ist (fileInput aktiv), versuchen wir zu raten.
+    if (fileRadio.checked) {
+       const detected = classifyGenreByData(currentBpm, dataArray);
+       document.getElementById("genreDetected").textContent = detected + " (erkannt)";
+    }
 
+    // Visuelle Parameter abrufen
+    const g = GENRE[currentGenre] || GENRE.classic;
+    
     const baseAmp = avg * parseFloat(sensitivity.value);
-    const g = GENRE[currentGenre];
     const amplitude = Math.min(1, baseAmp * g.growth * 1.4);
-    const wobble = g.wobble * Math.sin(Date.now() / (250 + g.wobble * 40));
+    
+    // Wobble-Berechnung
+    const timeFactor = Date.now() / (250 + g.wobble * 40);
+    const wobble = g.wobble * Math.sin(timeFactor);
+    
     const rotate = (amplitude * 32 * g.wobble) - 16;
     const swayX = wobble * 12;
     const scale = 1 + amplitude * (0.25 + g.growth * 0.2);
@@ -164,6 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     leafGroup.style.transform = `translate(${100 + swayX}px, ${110 - up}px) rotate(${rotate}deg) scale(${scale})`;
 
+    // Bars visualisieren
     const step = Math.floor(dataArray.length / BAR_COUNT);
     for (let i = 0; i < BAR_COUNT; i++) {
       const val = dataArray[i * step];
@@ -171,22 +235,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Event-Listener für Buttons & Sensitivity
+  // === BUTTON EVENTS ===
   playBtn.onclick = async () => {
-  if (!fileInput.files[0]) return alert('Bitte Audiodatei wählen.');
-  await startFromFile(fileInput.files[0]);
-};
+    if (!fileInput.files[0]) return alert('Bitte Audiodatei wählen.');
+    
+    // Zurücksetzen auf Datei-Modus
+    fileRadio.checked = true;
+    genreSelect.value = ""; 
+    
+    await startFromFile(fileInput.files[0]);
+  };
 
   stopBtn.onclick = stopAll;
+  
   sensitivity.oninput = () => sensVal.textContent = sensitivity.value;
-	
-	const volume = document.getElementById('volume');
-	const volVal = document.getElementById('volVal');
-	
-	volume.oninput = () => {
-  gainNode.gain.value = volume.value;
-  volVal.textContent = Number(volume.value).toFixed(2);
-};
-
-	
+  
+  volume.oninput = () => {
+    if (gainNode) gainNode.gain.value = volume.value;
+    volVal.textContent = Number(volume.value).toFixed(2);
+  };
 });
