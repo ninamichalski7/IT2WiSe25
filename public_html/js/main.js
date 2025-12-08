@@ -35,8 +35,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // === Blatt-Demo Setup ===
   const playBtn = document.getElementById('playBtn');
-  const pauseBtn = document.getElementById('stopBtn'); // Umbenannt, aber ID behalten
-  const resetBtn = document.getElementById('resetBtn'); // NEU: für kompletten Stop/Reset
+  const pauseBtn = document.getElementById('stopBtn'); 
+  const resetBtn = document.getElementById('resetBtn'); 
   const fileInput = document.getElementById('fileInput');
   const sensitivity = document.getElementById('sensitivity');
   const sensVal = document.getElementById('sensVal');
@@ -46,10 +46,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const barsContainer = document.getElementById('bars');
   const volume = document.getElementById('volume');
   const volVal = document.getElementById('volVal');
-  // NEU: Fortschrittsanzeigen
+  
   const currentTimeSpan = document.getElementById('currentTime');
   const durationTimeSpan = document.getElementById('durationTime');
   const progressBar = document.getElementById('progressBar');
+  
+  // NEU: Statusvariable, um zu verhindern, dass die Animation den Regler überschreibt, während der Benutzer spult
+  let isSeeking = false; 
 
   let audioCtx, analyser, dataArray, sourceNode, audioElem, rafId, stream, gainNode;
   const BAR_COUNT = 24;
@@ -62,7 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   const bars = Array.from(document.querySelectorAll('.bar'));
   
-  // NEU: Zeitformatierung (z.B. 3:45)
+  // Zeitformatierung (z.B. 3:45)
   function formatTime(seconds) {
     if (isNaN(seconds) || seconds === Infinity) return '0:00';
     const minutes = Math.floor(seconds / 60);
@@ -83,7 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
   
-  // NEU: Setzt Audio und Visuals komplett zurück
+  // Setzt Audio und Visuals komplett zurück
   function stopAll() {
     if (rafId) cancelAnimationFrame(rafId);
     if (audioElem) { 
@@ -92,15 +95,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (stream) { stream.getTracks().forEach(t => t.stop()); }
 
-    // WICHTIG: Visuals und Anzeigen zurücksetzen
+    // Visuals und Anzeigen zurücksetzen
     leafGroup.style.transform = 'translate(100px,110px) rotate(0) scale(1)';
     bars.forEach(b => b.style.height = '8px');
     currentTimeSpan.textContent = '0:00';
     durationTimeSpan.textContent = '0:00';
     progressBar.value = 0;
+    progressBar.max = 100; // Reset max value
     document.getElementById("genreDetected").textContent = "–";
     
-    // Setze Genre auf Default (classic) oder leer
     currentGenre = 'classic'; 
     applyGenreColors(currentGenre);
   }
@@ -114,18 +117,16 @@ document.addEventListener('DOMContentLoaded', () => {
     audioElem.loop = true;
     audioElem.src = isFile ? URL.createObjectURL(url) : url;
     
-    if (!isFile) {
-      audioElem.onerror = () => alert(`Konnte Datei nicht finden: ${url}\nBitte prüfe den Ordner "musik" und die Dateinamen!`);
-    }
     
     // Fortschrittsanzeige initialisieren
     audioElem.onloadedmetadata = () => {
       durationTimeSpan.textContent = formatTime(audioElem.duration);
+      // NEU: Setze Max-Wert des Reglers auf Song-Dauer
       progressBar.max = audioElem.duration;
       audioElem.play();
     };
 
-    // NEU: Reset, wenn Song zu Ende (wichtig, falls loop=false)
+    // Reset, wenn Song zu Ende (wichtig, falls loop=false)
     audioElem.onended = () => {
       stopAll(); 
       alert("Song beendet.");
@@ -151,15 +152,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Wenn man im Dropdown etwas auswählt:
   genreSelect.onchange = (e) => {
-    // 1. Setze Modus auf "Genre"
     if(fileRadio) fileRadio.checked = false; 
-    
-    // 2. Genre setzen
     currentGenre = e.target.value;
     applyGenreColors(currentGenre);
     document.getElementById("genreDetected").textContent = currentGenre.toUpperCase(); 
 
-    // 3. Song abspielen
     const songUrl = GENRE_SONGS[currentGenre];
     if (songUrl) {
       startFromGenre(songUrl);
@@ -173,13 +170,14 @@ document.addEventListener('DOMContentLoaded', () => {
     gElement.children[1].setAttribute("stop-color", params.colorB);
   }
 
-  // Initial Farben setzen
   applyGenreColors(currentGenre);
 
 
   // === ANALYSE LOGIK & ANIMATION ===
   let beatHistory = [];
   let lastPeakTime = 0;
+
+  // ... (estimateBPM, detectBeat, classifyGenreByData bleiben unverändert) ...
 
   function estimateBPM() {
     if (beatHistory.length < 2) return 0;
@@ -201,7 +199,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function classifyGenreByData(bpm, spectrum) {
-    // ... (Logik zur Genre-Erkennung, bleibt unverändert) ...
     let bass = 0, mid = 0, high = 0;
     const len = spectrum.length;
     for (let i = 0; i < len; i++) {
@@ -224,23 +221,25 @@ document.addEventListener('DOMContentLoaded', () => {
     rafId = requestAnimationFrame(animate);
 
     if (audioElem && !audioElem.paused) {
-      // NEU: Aktualisiere Fortschrittsanzeige
-      currentTimeSpan.textContent = formatTime(audioElem.currentTime);
-      progressBar.value = audioElem.currentTime;
+      
+      // Nur aktualisieren, wenn der Benutzer NICHT gerade den Regler zieht
+      if (!isSeeking) {
+          currentTimeSpan.textContent = formatTime(audioElem.currentTime);
+          progressBar.value = audioElem.currentTime;
+      }
       
       analyser.getByteFrequencyData(dataArray);
-
+      // ... (Visuelle Logik bleibt unverändert) ...
+      
       let avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length / 255;
       detectBeat(avg);
       const currentBpm = estimateBPM();
 
-      // Nur wenn WIRKLICH eine Datei hochgeladen ist, raten wir das Genre und zeigen es an.
       if (fileRadio.checked) {
         const detected = classifyGenreByData(currentBpm, dataArray);
         document.getElementById("genreDetected").textContent = detected + " (erkannt)";
       }
 
-      // Visuelle Parameter abrufen
       const g = GENRE[currentGenre] || GENRE.classic;
       
       const baseAmp = avg * parseFloat(sensitivity.value);
@@ -256,17 +255,46 @@ document.addEventListener('DOMContentLoaded', () => {
 
       leafGroup.style.transform = `translate(${100 + swayX}px, ${110 - up}px) rotate(${rotate}deg) scale(${scale})`;
 
-      // Bars visualisieren
       const step = Math.floor(dataArray.length / BAR_COUNT);
       for (let i = 0; i < BAR_COUNT; i++) {
         const val = dataArray[i * step];
         bars[i].style.height = Math.max(6, (val / 255) * 80) + 'px';
       }
-    } else {
-      // Wenn Musik pausiert ist, Visualisierung einfrieren
-      // Optional: Man könnte die Bars hier auf Null setzen, aber Einfrieren ist dynamischer.
-    }
+    } 
   }
+
+  // === NEUE LOGIK FÜR DEN REGELER (VOR- UND ZURÜCKSPULEN) ===
+
+  // Ereignis: Der Benutzer beginnt, den Regler zu ziehen
+  progressBar.onmousedown = progressBar.ontouchstart = () => {
+    isSeeking = true;
+    if (audioElem && !audioElem.paused) {
+      audioElem.pause(); // Optional: Pausiere, während gespult wird
+    }
+  };
+
+  // Ereignis: Der Benutzer bewegt den Regler
+  progressBar.oninput = () => {
+    if (isSeeking) {
+      // Aktualisiere nur die Textanzeige, bevor die Position im Audio gesetzt wird (onmouseup)
+      currentTimeSpan.textContent = formatTime(progressBar.value);
+    }
+  };
+
+  // Ereignis: Der Benutzer lässt den Regler los
+  progressBar.onmouseup = progressBar.ontouchend = () => {
+    isSeeking = false;
+    if (audioElem) {
+      // Setze die Abspielposition des Songs auf den Wert des Reglers
+      audioElem.currentTime = parseFloat(progressBar.value);
+      
+      // Starte die Wiedergabe sofort, falls der Song vorher lief
+      if (audioElem.paused) { 
+        audioElem.play();
+      }
+    }
+  };
+
 
   // === BUTTON EVENTS ===
   // Play/Resume Logik
@@ -274,14 +302,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. RESUME (wenn pausiert)
     if (audioElem && audioElem.paused && audioElem.src) {
       audioElem.play();
-      animate(); // Startet die Animation neu, falls sie gestoppt war
+      animate();
       return;
     }
 
     // 2. START (wenn Datei gewählt)
     if (fileRadio.checked) {
       if (!fileInput.files[0]) return alert('Bitte Audiodatei wählen.');
-      genreSelect.value = ""; // Genre-Auswahl neutralisieren
+      genreSelect.value = ""; 
       await startFromFile(fileInput.files[0]);
       return;
     }
@@ -304,7 +332,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
   
-  // NEU: Reset Logik für kompletten Stopp
+  // Reset Logik für kompletten Stopp
   resetBtn.onclick = stopAll;
 
 
