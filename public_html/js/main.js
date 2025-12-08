@@ -90,9 +90,6 @@ document.addEventListener('DOMContentLoaded', () => {
     audioElem.loop = true;
     audioElem.src = url;
     
-    // Fehler abfangen, falls Datei fehlt (angepasster Text)
-    audioElem.onerror = () => alert(`Konnte Datei nicht finden: ${url}\nBitte prüfe den Ordner "musik" und die Dateinamen!`);
-    
     await audioElem.play();
     sourceNode = audioCtx.createMediaElementSource(audioElem);
     setupAudioChain();
