@@ -63,7 +63,7 @@ function draw() {
   background(240, 240, 255, 40);
 
   // -----------------------------
-  // FFT-Daten holen
+  // FFT-Daten holen von dem gesamten Frequenzspektrums der Audio/des Sounds
   // -----------------------------
   let spectrum = fft.analyze();
   let bass = fft.getEnergy("bass") || 0; // fallback schützt vor NaN
