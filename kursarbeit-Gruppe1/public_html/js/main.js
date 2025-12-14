@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     hiphop: 'musik/hiphop.mp3'
   };
 
-  // === VISUELLE PARAMETER FÃœR DIE GENRES ===
+  // === VISUELLE PARAMETER FÜR DIE GENRES ===
   const GENRE = {
     classic: { growth: 0.4, wobble: 0.2, colorA: "#98edc1", colorB: "#52b5e6" },
     jazz: { growth: 0.6, wobble: 0.5, colorA: "#e6c200", colorB: "#6a0dad" },
@@ -98,7 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
     durationTimeSpan.textContent = '0:00';
     progressBar.value = 0;
     progressBar.max = 100;
-    document.getElementById("genreDetected").textContent = "â€“";
+    document.getElementById("genreDetected").textContent = "–";
     currentGenre = 'classic';
     applyGenreColors(currentGenre);
   }
@@ -251,7 +251,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     if (fileRadio.checked) {
-      if (!fileInput.files[0]) return alert('Bitte Audiodatei wÃ¤hlen.');
+      if (!fileInput.files[0]) return alert('Bitte Audiodatei wählen.');
       genreSelect.value = "";
       setupAudio(fileInput.files[0], true);
       return;
@@ -262,7 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById("genreDetected").textContent = currentGenre.toUpperCase();
       setupAudio(GENRE_SONGS[currentGenre], false);
     } else {
-      alert('Bitte wÃ¤hle ein Genre oder eine Audiodatei.');
+      alert('Bitte wähle ein Genre oder eine Audiodatei.');
     }
   };
 
@@ -281,7 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // === WebRTC BROADCASTER ===
   let rtcPeers = {};
   const ROOM_ID = 'synth-garden-live';
-  const socket = io('http://localhost:3000'); // SpÃ¤ter: deine echte Server-URL
+  const socket = io('http://localhost:3000'); // Später: deine echte Server-URL
 
   async function startBroadcast() {
     let broadcastStream = null;
@@ -309,7 +309,7 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.on('peer-joined', (viewerId) => createPeerConnection(viewerId, broadcastStream, true));
     socket.on('existing-peers', (peers) => peers.forEach(id => createPeerConnection(id, broadcastStream, true)));
 
-    alert("ğŸ”´ Live-Stream gestartet! Zuschauer kÃ¶nnen jetzt beitreten.");
+    alert("? Live-Stream gestartet! Zuschauer können jetzt beitreten.");
   }
 
   function createPeerConnection(peerId, stream, isInitiator) {
