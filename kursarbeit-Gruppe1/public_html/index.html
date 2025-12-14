@@ -47,6 +47,7 @@
       border: 0; background: #2b8dd6; color: white; padding: 8px 12px;
       border-radius: 8px; font-weight: 600; cursor: pointer;
     }
+	  
     .bars { position: absolute; left: 12px; bottom: 12px; display: flex; gap: 3px; align-items: end; }
     .bar { width: 6px; height: 12px; background: #bfe9ff; border-radius: 3px; }
     @media (max-width: 880px) { .card { grid-template-columns: 1fr; } }
@@ -133,6 +134,11 @@
        
   <label><input type="radio" name="src" value="file" id="fileRadio" checked> Audio-Datei</label>
   <input type="file" id="fileInput" accept="audio/*" />
+	<div style="margin-top:20px;">
+	  <button id="startBroadcastBtn" style="background:#22c55e; padding:10px 20px; border-radius:8px; color:white; font-weight:600;">
+		🔴 Live streamen
+	  </button>
+	</div>
 
   <div style="margin-top:12px">
     <button id="playBtn">Play</button>
@@ -172,6 +178,7 @@
   <footer>
     <p>&copy; 2025 Synth Garden – Eine interaktive Klang-Visualisierung</p>
   </footer>
+	<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 	<script src="js/main.js"></script>
 	
 	<script src="https://cdn.jsdelivr.net/npm/p5@1.6.0/lib/p5.min.js"></script>

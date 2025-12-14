@@ -1,6 +1,6 @@
 // main.js
 document.addEventListener('DOMContentLoaded', () => {
-  // === 1. KONFIGURATION DER GENRE-SONGS ===
+  // === KONFIGURATION DER GENRE-SONGS ===
   const GENRE_SONGS = {
     classic: 'musik/classic.mp3',
     jazz: 'musik/jazz.mp3',
@@ -8,7 +8,8 @@ document.addEventListener('DOMContentLoaded', () => {
     techno: 'musik/techno.mp3',
     hiphop: 'musik/hiphop.mp3'
   };
-  // === 2. VISUELLE PARAMETER FÜR DIE GENRES ===
+
+  // === VISUELLE PARAMETER FÜR DIE GENRES ===
   const GENRE = {
     classic: { growth: 0.4, wobble: 0.2, colorA: "#98edc1", colorB: "#52b5e6" },
     jazz: { growth: 0.6, wobble: 0.5, colorA: "#e6c200", colorB: "#6a0dad" },
@@ -16,7 +17,8 @@ document.addEventListener('DOMContentLoaded', () => {
     techno: { growth: 0.9, wobble: 1.8, colorA: "#ff00ff", colorB: "#00ffff" },
     hiphop: { growth: 1.0, wobble: 1.2, colorA: "#ff8800", colorB: "#ff0044" }
   };
-  // === Floating Particles auf der Startseite ===
+
+  // === Floating Particles ===
   const particlesContainer = document.getElementById('particles');
   for (let i = 0; i < 40; i++) {
     const p = document.createElement('div');
@@ -27,7 +29,8 @@ document.addEventListener('DOMContentLoaded', () => {
     p.style.animationDuration = (4 + Math.random() * 4) + 's';
     particlesContainer.appendChild(p);
   }
-  // === Blatt-Demo Setup ===
+
+  // === Elemente aus dem DOM ===
   const playBtn = document.getElementById('playBtn');
   const pauseBtn = document.getElementById('stopBtn');
   const resetBtn = document.getElementById('resetBtn');
@@ -40,15 +43,17 @@ document.addEventListener('DOMContentLoaded', () => {
   const barsContainer = document.getElementById('bars');
   const volume = document.getElementById('volume');
   const volVal = document.getElementById('volVal');
- 
   const currentTimeSpan = document.getElementById('currentTime');
   const durationTimeSpan = document.getElementById('durationTime');
   const progressBar = document.getElementById('progressBar');
- 
-  // NEU: Statusvariable, um zu verhindern, dass die Animation den Regler überschreibt, während der Benutzer spult
+  const startBroadcastBtn = document.getElementById('startBroadcastBtn'); // Neuer Button
+
+  // === Globale Variablen ===
   let isSeeking = false;
   let audioCtx, analyser, dataArray, sourceNode, audioElem, rafId, stream, gainNode;
+  let currentGenre = "classic";
   const BAR_COUNT = 24;
+
   // Bars erstellen
   for (let i = 0; i < BAR_COUNT; i++) {
     const b = document.createElement('div');
@@ -56,122 +61,114 @@ document.addEventListener('DOMContentLoaded', () => {
     barsContainer.appendChild(b);
   }
   const bars = Array.from(document.querySelectorAll('.bar'));
- 
-  // Zeitformatierung (z.B. 3:45)
+
+  // === Hilfsfunktionen ===
   function formatTime(seconds) {
     if (isNaN(seconds) || seconds === Infinity) return '0:00';
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = Math.floor(seconds % 60);
     return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
   }
+
   function initAudioContext() {
     if (!audioCtx) {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       analyser = audioCtx.createAnalyser();
       analyser.fftSize = 2048;
       dataArray = new Uint8Array(analyser.frequencyBinCount);
-     
       gainNode = audioCtx.createGain();
       gainNode.gain.value = volume.value;
     }
   }
- 
-  // Setzt Audio und Visuals komplett zurück
+
   function stopAll() {
     if (rafId) cancelAnimationFrame(rafId);
     if (audioElem) {
       audioElem.pause();
       audioElem.src = '';
+      audioElem = null;
     }
-    if (stream) { stream.getTracks().forEach(t => t.stop()); }
-    // Visuals und Anzeigen zurücksetzen
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop());
+      stream = null;
+    }
     leafGroup.style.transform = 'translate(100px,110px) rotate(0) scale(1)';
     bars.forEach(b => b.style.height = '8px');
     currentTimeSpan.textContent = '0:00';
     durationTimeSpan.textContent = '0:00';
     progressBar.value = 0;
-    progressBar.max = 100; // Reset max value
+    progressBar.max = 100;
     document.getElementById("genreDetected").textContent = "–";
-   
     currentGenre = 'classic';
     applyGenreColors(currentGenre);
   }
-  // Zentralisierte Audio-Setup-Funktion
+
   function setupAudio(url, isFile = false) {
-    stopAll(); // Stoppt vorherigen Track und setzt Visuals zurück
+    stopAll();
     initAudioContext();
     audioElem = new Audio();
     audioElem.loop = true;
     audioElem.src = isFile ? URL.createObjectURL(url) : url;
-   
-   
-    // Fortschrittsanzeige initialisieren
+
     audioElem.onloadedmetadata = () => {
       durationTimeSpan.textContent = formatTime(audioElem.duration);
-      // NEU: Setze Max-Wert des Reglers auf Song-Dauer
       progressBar.max = audioElem.duration;
-      audioElem.play();
+      audioElem.play().catch(e => console.error("Play error:", e));
     };
-    // Reset, wenn Song zu Ende (wichtig, falls loop=false)
-    audioElem.onended = () => {
-      stopAll();
-      alert("Song beendet.");
-    };
+
+    audioElem.onended = () => stopAll();
+
     sourceNode = audioCtx.createMediaElementSource(audioElem);
     sourceNode.connect(analyser);
     analyser.connect(gainNode);
     gainNode.connect(audioCtx.destination);
-   
+
     animate();
   }
-  async function startFromFile(file) {
-      setupAudio(file, true);
-  }
-  async function startFromGenre(url) {
-      setupAudio(url, false);
-  }
- 
-  // === GENRE LOGIK ===
-  let currentGenre = "classic";
-  // Wenn man im Dropdown etwas auswählt:
-  genreSelect.onchange = (e) => {
-    if(fileRadio) fileRadio.checked = false;
-    currentGenre = e.target.value;
-    applyGenreColors(currentGenre);
-    document.getElementById("genreDetected").textContent = currentGenre.toUpperCase();
-    const songUrl = GENRE_SONGS[currentGenre];
-    if (songUrl) {
-      startFromGenre(songUrl);
-    }
-  };
+
+  // === Genre-Funktionen ===
   function applyGenreColors(genre) {
     const gElement = document.querySelector('#g1');
+    if (!gElement) return;
     const params = GENRE[genre] || GENRE.classic;
     gElement.children[0].setAttribute("stop-color", params.colorA);
     gElement.children[1].setAttribute("stop-color", params.colorB);
   }
+
+  genreSelect.onchange = (e) => {
+    fileRadio.checked = false;
+    currentGenre = e.target.value;
+    applyGenreColors(currentGenre);
+    document.getElementById("genreDetected").textContent = currentGenre.toUpperCase();
+    const songUrl = GENRE_SONGS[currentGenre];
+    if (songUrl) setupAudio(songUrl, false);
+  };
+
   applyGenreColors(currentGenre);
-  // === ANALYSE LOGIK & ANIMATION ===
+
+  // === Audio-Analyse ===
   let beatHistory = [];
   let lastPeakTime = 0;
-  // ... (estimateBPM, detectBeat, classifyGenreByData bleiben unverändert) ...
+
   function estimateBPM() {
     if (beatHistory.length < 2) return 0;
     const diffs = [];
     for (let i = 1; i < beatHistory.length; i++) {
-      diffs.push(beatHistory[i] - beatHistory[i-1]);
+      diffs.push(beatHistory[i] - beatHistory[i - 1]);
     }
-    const avgDiff = diffs.reduce((a,b)=>a+b,0)/diffs.length;
-    return 60 / avgDiff;
+    const avgDiff = diffs.reduce((a, b) => a + b, 0) / diffs.length;
+    return Math.round(60 / avgDiff);
   }
+
   function detectBeat(avgAmp) {
     const now = audioCtx.currentTime;
-    if(avgAmp > 0.25 && (now - lastPeakTime) > 0.25) {
+    if (avgAmp > 0.25 && (now - lastPeakTime) > 0.25) {
       lastPeakTime = now;
       beatHistory.push(now);
-      if(beatHistory.length > 20) beatHistory.shift();
+      if (beatHistory.length > 20) beatHistory.shift();
     }
   }
+
   function classifyGenreByData(bpm, spectrum) {
     let bass = 0, mid = 0, high = 0;
     const len = spectrum.length;
@@ -181,49 +178,47 @@ document.addEventListener('DOMContentLoaded', () => {
       else if (freq < 2000) mid += spectrum[i];
       else high += spectrum[i];
     }
-    const total = bass + mid + high;
+    const total = bass + mid + high || 1;
     bass /= total; mid /= total; high /= total;
+
     if (bpm < 90 && high < 0.2) return "classic";
     if (bpm >= 70 && bpm <= 120 && mid > 0.4) return "jazz";
     if (bpm > 80 && bpm < 110 && bass > 0.45) return "hiphop";
     if (bpm > 120 && high > 0.25) return "techno";
     return "rock";
   }
+
   function animate() {
     rafId = requestAnimationFrame(animate);
     if (audioElem && !audioElem.paused) {
-     
-      // Nur aktualisieren, wenn der Benutzer NICHT gerade den Regler zieht
       if (!isSeeking) {
-          currentTimeSpan.textContent = formatTime(audioElem.currentTime);
-          progressBar.value = audioElem.currentTime;
+        currentTimeSpan.textContent = formatTime(audioElem.currentTime);
+        progressBar.value = audioElem.currentTime;
       }
-     
+
       analyser.getByteFrequencyData(dataArray);
-      // ... (Visuelle Logik bleibt unverändert) ...
-     
-      let avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length / 255;
+      const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length / 255;
+
       detectBeat(avg);
       const currentBpm = estimateBPM();
-      // Dynamische Genre-Erkennung immer ausführen (nicht nur für Files)
+
       const detected = classifyGenreByData(currentBpm, dataArray);
       document.getElementById("genreDetected").textContent = detected + " (erkannt)";
-      currentGenre = detected;  // Aktualisiere currentGenre dynamisch
-      applyGenreColors(currentGenre);  // Ändere Farben basierend auf Erkennung
-      
+      currentGenre = detected;
+      applyGenreColors(currentGenre);
+
       const g = GENRE[currentGenre] || GENRE.classic;
-     
       const baseAmp = avg * parseFloat(sensitivity.value);
       const amplitude = Math.min(1, baseAmp * g.growth * 1.4);
-     
       const timeFactor = Date.now() / (250 + g.wobble * 40);
       const wobble = g.wobble * Math.sin(timeFactor);
-     
       const rotate = (amplitude * 32 * g.wobble) - 16;
       const swayX = wobble * 12;
       const scale = 1 + amplitude * (0.25 + g.growth * 0.2);
       const up = amplitude * (10 + g.growth * 16);
+
       leafGroup.style.transform = `translate(${100 + swayX}px, ${110 - up}px) rotate(${rotate}deg) scale(${scale})`;
+
       const step = Math.floor(dataArray.length / BAR_COUNT);
       for (let i = 0; i < BAR_COUNT; i++) {
         const val = dataArray[i * step];
@@ -231,75 +226,130 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
   }
-  // === NEUE LOGIK FÜR DEN REGELER (VOR- UND ZURÜCKSPULEN) ===
-  // Ereignis: Der Benutzer beginnt, den Regler zu ziehen
+
+  // === Progress Bar (Spulen) ===
   progressBar.onmousedown = progressBar.ontouchstart = () => {
     isSeeking = true;
-    if (audioElem && !audioElem.paused) {
-      audioElem.pause(); // Optional: Pausiere, während gespult wird
-    }
+    if (audioElem && !audioElem.paused) audioElem.pause();
   };
-  // Ereignis: Der Benutzer bewegt den Regler
   progressBar.oninput = () => {
-    if (isSeeking) {
-      // Aktualisiere nur die Textanzeige, bevor die Position im Audio gesetzt wird (onmouseup)
-      currentTimeSpan.textContent = formatTime(progressBar.value);
-    }
+    if (isSeeking) currentTimeSpan.textContent = formatTime(progressBar.value);
   };
-  // Ereignis: Der Benutzer lässt den Regler los
   progressBar.onmouseup = progressBar.ontouchend = () => {
     isSeeking = false;
     if (audioElem) {
-      // Setze die Abspielposition des Songs auf den Wert des Reglers
       audioElem.currentTime = parseFloat(progressBar.value);
-     
-      // Starte die Wiedergabe sofort, falls der Song vorher lief
-      if (audioElem.paused) {
-        audioElem.play();
-      }
+      if (audioElem.paused) audioElem.play();
     }
   };
-  // === BUTTON EVENTS ===
-  // Play/Resume Logik
+
+  // === Button Events ===
   playBtn.onclick = async () => {
-    // 1. RESUME (wenn pausiert)
     if (audioElem && audioElem.paused && audioElem.src) {
       audioElem.play();
       animate();
       return;
     }
-    // 2. START (wenn Datei gewählt)
     if (fileRadio.checked) {
       if (!fileInput.files[0]) return alert('Bitte Audiodatei wählen.');
       genreSelect.value = "";
-      await startFromFile(fileInput.files[0]);
+      setupAudio(fileInput.files[0], true);
       return;
     }
-   
-    // 3. START (wenn Genre gewählt, aber noch nichts spielt)
     if (genreSelect.value && GENRE_SONGS[genreSelect.value]) {
       currentGenre = genreSelect.value;
       applyGenreColors(currentGenre);
       document.getElementById("genreDetected").textContent = currentGenre.toUpperCase();
-      await startFromGenre(GENRE_SONGS[currentGenre]);
+      setupAudio(GENRE_SONGS[currentGenre], false);
     } else {
       alert('Bitte wähle ein Genre oder eine Audiodatei.');
     }
   };
-  // Pause Logik
+
   pauseBtn.onclick = () => {
-    if (audioElem && !audioElem.paused) {
-      audioElem.pause();
-    }
+    if (audioElem && !audioElem.paused) audioElem.pause();
   };
- 
-  // Reset Logik für kompletten Stopp
+
   resetBtn.onclick = stopAll;
-  // Weitere Event-Listener
+
   sensitivity.oninput = () => sensVal.textContent = sensitivity.value;
- 
   volume.oninput = () => {
     if (gainNode) gainNode.gain.value = volume.value;
     volVal.textContent = Number(volume.value).toFixed(2);
   };
+
+  // === WebRTC BROADCASTER ===
+  let rtcPeers = {};
+  const ROOM_ID = 'synth-garden-live';
+  const socket = io('http://localhost:3000'); // Später: deine echte Server-URL
+
+  async function startBroadcast() {
+    let broadcastStream = null;
+
+    // Welche Audioquelle ist aktiv?
+    if (audioElem && audioElem.src) {
+      // Aus <audio>-Element (Datei oder Genre-Song)
+      if (typeof audioElem.captureStream === 'function') {
+        broadcastStream = audioElem.captureStream();
+      } else if (typeof audioElem.mozCaptureStream === 'function') {
+        broadcastStream = audioElem.mozCaptureStream();
+      }
+    } else if (stream) {
+      // Mikrofon
+      broadcastStream = stream;
+    }
+
+    if (!broadcastStream) {
+      alert("Keine aktive Audioquelle. Starte zuerst eine Wiedergabe.");
+      return;
+    }
+
+    socket.emit('join-room', ROOM_ID);
+
+    socket.on('peer-joined', (viewerId) => createPeerConnection(viewerId, broadcastStream, true));
+    socket.on('existing-peers', (peers) => peers.forEach(id => createPeerConnection(id, broadcastStream, true)));
+
+    alert("🔴 Live-Stream gestartet! Zuschauer können jetzt beitreten.");
+  }
+
+  function createPeerConnection(peerId, stream, isInitiator) {
+    const pc = new RTCPeerConnection({
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    });
+    rtcPeers[peerId] = pc;
+
+    stream.getAudioTracks().forEach(track => pc.addTrack(track, stream));
+
+    pc.onicecandidate = (e) => {
+      if (e.candidate) socket.emit('ice-candidate', { target: peerId, candidate: e.candidate });
+    };
+
+    if (isInitiator) {
+      pc.createOffer()
+        .then(offer => pc.setLocalDescription(offer))
+        .then(() => socket.emit('offer', { target: peerId, offer: pc.localDescription }));
+    }
+
+    socket.on('answer', (data) => {
+      if (data.sender === peerId) pc.setRemoteDescription(data.answer);
+    });
+
+    socket.on('ice-candidate', (data) => {
+      if (data.sender === peerId && data.candidate) {
+        pc.addIceCandidate(data.candidate).catch(e => console.error("ICE Fehler:", e));
+      }
+    });
+
+    socket.on('peer-left', (leftId) => {
+      if (rtcPeers[leftId]) {
+        rtcPeers[leftId].close();
+        delete rtcPeers[leftId];
+      }
+    });
+  }
+
+  // Button zum Starten des Streams
+  if (startBroadcastBtn) {
+    startBroadcastBtn.addEventListener('click', startBroadcast);
+  }
 });
