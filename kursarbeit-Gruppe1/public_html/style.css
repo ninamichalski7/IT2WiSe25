@@ -290,3 +290,86 @@ footer {
 .dropdown > a.active {
   color: #22c55e;
 }
+
+/* --- Zusätzliche Styles aus der Blatt-Demo --- */
+.experience-section {
+  display: flex;
+  justify-content: center;
+  padding: 60px 20px;
+}
+
+.card {
+  width: 960px;
+  max-width: 98%;
+  background: #ffffff;           
+  border-radius: 12px;
+  box-shadow: 0 6px 30px rgba(20, 40, 80, 0.08);
+  padding: 18px;
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 18px;
+}
+
+.stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 420px;
+  background: linear-gradient(180deg, #e8fff5, #f7fff9);
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.controls {
+  color: #333333;
+  padding: 12px;
+}
+
+.controls label {
+  display: block;
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+button {
+  border: 0;
+  background: #2b8dd6;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+svg {
+  width: 70%;
+  height: auto;
+  max-height: 380px;
+}
+
+/* BPM-Bars – mit z-index für Chrome */
+.bars {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  display: flex;
+  gap: 3px;
+  align-items: end;
+  z-index: 10;                /* ← Sicher über dem SVG */
+  pointer-events: none;
+}
+
+.bar {
+  width: 6px;
+  height: 12px;
+  background: #bfe9ff;
+  border-radius: 3px;
+  transition: height 0.1s ease;
+}
+
+@media (max-width: 880px) {
+  .card {
+    grid-template-columns: 1fr;
+  }
+}
