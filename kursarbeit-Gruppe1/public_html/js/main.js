@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
     particlesContainer.appendChild(p);
   }
 
-  // === Elemente aus dem DOM ===
+  // === DOM-Elemente ===
   const playBtn = document.getElementById('playBtn');
   const pauseBtn = document.getElementById('stopBtn');
   const resetBtn = document.getElementById('resetBtn');
@@ -46,7 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const currentTimeSpan = document.getElementById('currentTime');
   const durationTimeSpan = document.getElementById('durationTime');
   const progressBar = document.getElementById('progressBar');
-  const startBroadcastBtn = document.getElementById('startBroadcastBtn'); // Neuer Button
+  const startBroadcastBtn = document.getElementById('startBroadcastBtn');
 
   // === Globale Variablen ===
   let isSeeking = false;
@@ -60,14 +60,14 @@ document.addEventListener('DOMContentLoaded', () => {
     b.className = 'bar';
     barsContainer.appendChild(b);
   }
-  const bars = Array.from(document.querySelectorAll('.bar'));
+  const bars = document.querySelectorAll('.bar');
 
   // === Hilfsfunktionen ===
   function formatTime(seconds) {
     if (isNaN(seconds) || seconds === Infinity) return '0:00';
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
   }
 
   function initAudioContext() {
@@ -83,15 +83,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function stopAll() {
     if (rafId) cancelAnimationFrame(rafId);
-    if (audioElem) {
-      audioElem.pause();
-      audioElem.src = '';
-      audioElem = null;
-    }
-    if (stream) {
-      stream.getTracks().forEach(t => t.stop());
-      stream = null;
-    }
+    if (audioElem) { audioElem.pause(); audioElem.src = ''; audioElem = null; }
+    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
     leafGroup.style.transform = 'translate(100px,110px) rotate(0) scale(1)';
     bars.forEach(b => b.style.height = '8px');
     currentTimeSpan.textContent = '0:00';
@@ -113,26 +106,24 @@ document.addEventListener('DOMContentLoaded', () => {
     audioElem.onloadedmetadata = () => {
       durationTimeSpan.textContent = formatTime(audioElem.duration);
       progressBar.max = audioElem.duration;
-      audioElem.play().catch(e => console.error("Play error:", e));
+      audioElem.play().catch(e => console.error(e));
     };
 
-    audioElem.onended = () => stopAll();
+    audioElem.onended = stopAll;
 
     sourceNode = audioCtx.createMediaElementSource(audioElem);
     sourceNode.connect(analyser);
     analyser.connect(gainNode);
     gainNode.connect(audioCtx.destination);
-
     animate();
   }
 
-  // === Genre-Funktionen ===
   function applyGenreColors(genre) {
-    const gElement = document.querySelector('#g1');
-    if (!gElement) return;
-    const params = GENRE[genre] || GENRE.classic;
-    gElement.children[0].setAttribute("stop-color", params.colorA);
-    gElement.children[1].setAttribute("stop-color", params.colorB);
+    const g = document.querySelector('#g1');
+    if (!g) return;
+    const p = GENRE[genre] || GENRE.classic;
+    g.children[0].setAttribute('stop-color', p.colorA);
+    g.children[1].setAttribute('stop-color', p.colorB);
   }
 
   genreSelect.onchange = (e) => {
@@ -140,29 +131,24 @@ document.addEventListener('DOMContentLoaded', () => {
     currentGenre = e.target.value;
     applyGenreColors(currentGenre);
     document.getElementById("genreDetected").textContent = currentGenre.toUpperCase();
-    const songUrl = GENRE_SONGS[currentGenre];
-    if (songUrl) setupAudio(songUrl, false);
+    if (GENRE_SONGS[currentGenre]) setupAudio(GENRE_SONGS[currentGenre], false);
   };
 
   applyGenreColors(currentGenre);
 
-  // === Audio-Analyse ===
+  // === Audio-Analyse & Animation ===
   let beatHistory = [];
   let lastPeakTime = 0;
 
   function estimateBPM() {
     if (beatHistory.length < 2) return 0;
-    const diffs = [];
-    for (let i = 1; i < beatHistory.length; i++) {
-      diffs.push(beatHistory[i] - beatHistory[i - 1]);
-    }
-    const avgDiff = diffs.reduce((a, b) => a + b, 0) / diffs.length;
-    return Math.round(60 / avgDiff);
+    const diffs = beatHistory.slice(1).map((t, i) => t - beatHistory[i]);
+    return Math.round(60 / (diffs.reduce((a,b) => a+b) / diffs.length));
   }
 
-  function detectBeat(avgAmp) {
+  function detectBeat(avg) {
     const now = audioCtx.currentTime;
-    if (avgAmp > 0.25 && (now - lastPeakTime) > 0.25) {
+    if (avg > 0.25 && now - lastPeakTime > 0.25) {
       lastPeakTime = now;
       beatHistory.push(now);
       if (beatHistory.length > 20) beatHistory.shift();
@@ -171,11 +157,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function classifyGenreByData(bpm, spectrum) {
     let bass = 0, mid = 0, high = 0;
-    const len = spectrum.length;
-    for (let i = 0; i < len; i++) {
-      const freq = i * (audioCtx.sampleRate / 2) / len;
-      if (freq < 200) bass += spectrum[i];
-      else if (freq < 2000) mid += spectrum[i];
+    for (let i = 0; i < spectrum.length; i++) {
+      const f = i * audioCtx.sampleRate / 2 / spectrum.length;
+      if (f < 200) bass += spectrum[i];
+      else if (f < 2000) mid += spectrum[i];
       else high += spectrum[i];
     }
     const total = bass + mid + high || 1;
@@ -190,44 +175,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function animate() {
     rafId = requestAnimationFrame(animate);
-    if (audioElem && !audioElem.paused) {
-      if (!isSeeking) {
+    if ((audioElem && !audioElem.paused) || (remoteStream && remoteStream.active)) {
+      if (!isSeeking && audioElem) {
         currentTimeSpan.textContent = formatTime(audioElem.currentTime);
         progressBar.value = audioElem.currentTime;
       }
 
       analyser.getByteFrequencyData(dataArray);
-      const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length / 255;
+      const avg = dataArray.reduce((a,b) => a+b, 0) / dataArray.length / 255;
 
       detectBeat(avg);
-      const currentBpm = estimateBPM();
-
-      const detected = classifyGenreByData(currentBpm, dataArray);
+      const bpm = estimateBPM();
+      const detected = classifyGenreByData(bpm, dataArray);
       document.getElementById("genreDetected").textContent = detected + " (erkannt)";
       currentGenre = detected;
       applyGenreColors(currentGenre);
 
       const g = GENRE[currentGenre] || GENRE.classic;
-      const baseAmp = avg * parseFloat(sensitivity.value);
-      const amplitude = Math.min(1, baseAmp * g.growth * 1.4);
-      const timeFactor = Date.now() / (250 + g.wobble * 40);
-      const wobble = g.wobble * Math.sin(timeFactor);
-      const rotate = (amplitude * 32 * g.wobble) - 16;
+      const amp = Math.min(1, avg * parseFloat(sensitivity.value) * g.growth * 1.4);
+      const wobble = g.wobble * Math.sin(Date.now() / (250 + g.wobble * 40));
+      const rotate = amp * 32 * g.wobble - 16;
       const swayX = wobble * 12;
-      const scale = 1 + amplitude * (0.25 + g.growth * 0.2);
-      const up = amplitude * (10 + g.growth * 16);
+      const scale = 1 + amp * (0.25 + g.growth * 0.2);
+      const up = amp * (10 + g.growth * 16);
 
       leafGroup.style.transform = `translate(${100 + swayX}px, ${110 - up}px) rotate(${rotate}deg) scale(${scale})`;
 
       const step = Math.floor(dataArray.length / BAR_COUNT);
-      for (let i = 0; i < BAR_COUNT; i++) {
+      bars.forEach((bar, i) => {
         const val = dataArray[i * step];
-        bars[i].style.height = Math.max(6, (val / 255) * 80) + 'px';
-      }
+        bar.style.height = Math.max(6, (val / 255) * 80) + 'px';
+      });
     }
   }
 
-  // === Progress Bar (Spulen) ===
+  // === Progress Bar ===
   progressBar.onmousedown = progressBar.ontouchstart = () => {
     isSeeking = true;
     if (audioElem && !audioElem.paused) audioElem.pause();
@@ -243,85 +225,67 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  // === Button Events ===
-  playBtn.onclick = async () => {
+  // === Button Events  ===
+  playBtn.addEventListener('click', async () => {
     if (audioElem && audioElem.paused && audioElem.src) {
-      audioElem.play();
+      await audioElem.play();
       animate();
       return;
     }
-    if (fileRadio.checked) {
-      if (!fileInput.files[0]) return alert('Bitte Audiodatei wählen.');
+    if (fileRadio.checked && fileInput.files[0]) {
       genreSelect.value = "";
       setupAudio(fileInput.files[0], true);
-      return;
-    }
-    if (genreSelect.value && GENRE_SONGS[genreSelect.value]) {
+    } else if (genreSelect.value && GENRE_SONGS[genreSelect.value]) {
       currentGenre = genreSelect.value;
       applyGenreColors(currentGenre);
       document.getElementById("genreDetected").textContent = currentGenre.toUpperCase();
       setupAudio(GENRE_SONGS[currentGenre], false);
     } else {
-      alert('Bitte wähle ein Genre oder eine Audiodatei.');
+      alert('Bitte wähle eine Audioquelle.');
     }
-  };
+  });
 
-  pauseBtn.onclick = () => {
-    if (audioElem && !audioElem.paused) audioElem.pause();
-  };
-
+  pauseBtn.onclick = () => audioElem?.pause();
   resetBtn.onclick = stopAll;
-
   sensitivity.oninput = () => sensVal.textContent = sensitivity.value;
   volume.oninput = () => {
     if (gainNode) gainNode.gain.value = volume.value;
     volVal.textContent = Number(volume.value).toFixed(2);
   };
 
-  // === WebRTC BROADCASTER ===
-  let rtcPeers = {};
+  // === WebRTC: Einmalige Socket-Verbindung ===
   const ROOM_ID = 'synth-garden-live';
-  const socket = io('http://localhost:3000'); // Später: deine echte Server-URL
+  const socket = io('http://localhost:3000'); // Später echte URL
 
-  async function startBroadcast() {
-    let broadcastStream = null;
+  let isBroadcaster = false;
+  let rtcPeers = {};
+  let remoteStream = null;
 
-    // Welche Audioquelle ist aktiv?
-    if (audioElem && audioElem.src) {
-      // Aus <audio>-Element (Datei oder Genre-Song)
-      if (typeof audioElem.captureStream === 'function') {
-        broadcastStream = audioElem.captureStream();
-      } else if (typeof audioElem.mozCaptureStream === 'function') {
-        broadcastStream = audioElem.mozCaptureStream();
-      }
-    } else if (stream) {
-      // Mikrofon
-      broadcastStream = stream;
-    }
-
-    if (!broadcastStream) {
-      alert("Keine aktive Audioquelle. Starte zuerst eine Wiedergabe.");
-      return;
-    }
-
-    socket.emit('join-room', ROOM_ID);
-
-    socket.on('peer-joined', (viewerId) => createPeerConnection(viewerId, broadcastStream, true));
-    socket.on('existing-peers', (peers) => peers.forEach(id => createPeerConnection(id, broadcastStream, true)));
-
-    alert("? Live-Stream gestartet! Zuschauer können jetzt beitreten.");
-  }
-
+  // Universelle Peer-Verbindung (für beide Rollen)
   function createPeerConnection(peerId, stream, isInitiator) {
-    const pc = new RTCPeerConnection({
-      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-    });
+    const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
     rtcPeers[peerId] = pc;
 
-    stream.getAudioTracks().forEach(track => pc.addTrack(track, stream));
+    if (stream) {
+      stream.getAudioTracks().forEach(track => pc.addTrack(track, stream));
+    }
+
+    pc.ontrack = (event) => {
+      if (!remoteStream) remoteStream = new MediaStream();
+      remoteStream.addTrack(event.track);
+      stopAll(); // Lokale Quelle stoppen
+      initAudioContext();
+      sourceNode = audioCtx.createMediaStreamSource(remoteStream);
+      sourceNode.connect(analyser);
+      analyser.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      animate();
+    };
 
     pc.onicecandidate = (e) => {
-      if (e.candidate) socket.emit('ice-candidate', { target: peerId, candidate: e.candidate });
+      if (e.candidate) {
+        socket.emit('ice-candidate', { target: peerId, candidate: e.candidate });
+      }
     };
 
     if (isInitiator) {
@@ -334,22 +298,60 @@ document.addEventListener('DOMContentLoaded', () => {
       if (data.sender === peerId) pc.setRemoteDescription(data.answer);
     });
 
-    socket.on('ice-candidate', (data) => {
-      if (data.sender === peerId && data.candidate) {
-        pc.addIceCandidate(data.candidate).catch(e => console.error("ICE Fehler:", e));
+    socket.on('offer', async (data) => {
+      if (data.sender === peerId && !isInitiator) {
+        await pc.setRemoteDescription(data.offer);
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        socket.emit('answer', { target: peerId, answer: pc.localDescription });
       }
     });
 
-    socket.on('peer-left', (leftId) => {
-      if (rtcPeers[leftId]) {
-        rtcPeers[leftId].close();
-        delete rtcPeers[leftId];
+    socket.on('ice-candidate', (data) => {
+      if (data.sender === peerId && data.candidate) {
+        pc.addIceCandidate(data.candidate).catch(() => {});
       }
     });
   }
 
-  // Button zum Starten des Streams
+  // Broadcaster starten
+  async function startBroadcast() {
+    if (isBroadcaster) {
+      alert("Du streamst bereits.");
+      return;
+    }
+
+    let streamToSend = null;
+    if (audioElem && audioElem.src) {
+      streamToSend = audioElem.captureStream?.() || audioElem.mozCaptureStream?.();
+    } else if (stream) {
+      streamToSend = stream;
+    }
+
+    if (!streamToSend || streamToSend.getAudioTracks().length === 0) {
+      alert("Keine Audioquelle aktiv. Starte zuerst eine Wiedergabe.");
+      return;
+    }
+
+    isBroadcaster = true;
+    socket.emit('join-room', ROOM_ID);
+
+    socket.on('peer-joined', (id) => createPeerConnection(id, streamToSend, true));
+    socket.on('existing-peers', (peers) => peers.forEach(id => createPeerConnection(id, streamToSend, true)));
+
+    alert("? Live-Stream gestartet!");
+  }
+
   if (startBroadcastBtn) {
     startBroadcastBtn.addEventListener('click', startBroadcast);
   }
+
+  // Viewer-Modus: Immer aktiv (außer wenn Broadcaster)
+  socket.emit('join-room', ROOM_ID);
+  socket.on('peer-joined', (id) => {
+    if (!isBroadcaster) createPeerConnection(id, null, false);
+  });
+  socket.on('existing-peers', (peers) => {
+    if (!isBroadcaster) peers.forEach(id => createPeerConnection(id, null, false));
+  });
 });
