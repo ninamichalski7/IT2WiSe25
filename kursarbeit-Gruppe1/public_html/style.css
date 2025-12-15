@@ -84,6 +84,8 @@ body {
     background: linear-gradient(180deg, #0f172a, #052e16);
     color: #f1f5f9;
     overflow-x: hidden;
+    position: relative;    /* ← Neu: Erzeugt einen Stacking-Context */
+    z-index: 0;            /* ← Neu: Body über den Partikeln (z-index: -1) */
 }
 /* === Container === */
 .container {

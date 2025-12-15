@@ -339,7 +339,7 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.on('peer-joined', (id) => createPeerConnection(id, streamToSend, true));
     socket.on('existing-peers', (peers) => peers.forEach(id => createPeerConnection(id, streamToSend, true)));
 
-    alert("? Live-Stream gestartet!");
+    alert("Live-Stream gestartet!");
   }
 
   if (startBroadcastBtn) {
