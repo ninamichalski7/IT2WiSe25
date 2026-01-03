@@ -1,7 +1,7 @@
-// main.js
-document.addEventListener('DOMContentLoaded', () => {
-  // === KONFIGURATION DER GENRE-SONGS ===
-  const GENRE_SONGS = {
+// main.js 
+document.addEventListener('DOMContentLoaded', function() {
+  /* Konfiguration */
+  var GENRE_SONGS = {
     classic: 'musik/classic.mp3',
     jazz: 'musik/jazz.mp3',
     rock: 'musik/rock.mp3',
@@ -9,8 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     hiphop: 'musik/hiphop.mp3'
   };
 
-  // === VISUELLE PARAMETER FÜR DIE GENRES ===
-  const GENRE = {
+  var GENRE = {
     classic: { growth: 0.4, wobble: 0.2, colorA: "#98edc1", colorB: "#52b5e6" },
     jazz: { growth: 0.6, wobble: 0.5, colorA: "#e6c200", colorB: "#6a0dad" },
     rock: { growth: 1.2, wobble: 1.4, colorA: "#28ff00", colorB: "#005eff" },
@@ -18,56 +17,70 @@ document.addEventListener('DOMContentLoaded', () => {
     hiphop: { growth: 1.0, wobble: 1.2, colorA: "#ff8800", colorB: "#ff0044" }
   };
 
-  // === Floating Particles ===
-  const particlesContainer = document.getElementById('particles');
-  for (let i = 0; i < 40; i++) {
-    const p = document.createElement('div');
-    p.className = 'particle';
-    p.style.left = Math.random() * 100 + '%';
-    p.style.top = Math.random() * 100 + '%';
-    p.style.animationDelay = Math.random() * 6 + 's';
-    p.style.animationDuration = (4 + Math.random() * 4) + 's';
-    particlesContainer.appendChild(p);
+  /* DOM Elemente */
+  var playBtn = document.getElementById('playBtn');
+  var pauseBtn = document.getElementById('stopBtn');
+  var resetBtn = document.getElementById('resetBtn');
+  var fileInput = document.getElementById('fileInput');
+  var sensitivity = document.getElementById('sensitivity');
+  var sensVal = document.getElementById('sensVal');
+  var fileRadio = document.getElementById('fileRadio');
+  var genreSelect = document.getElementById('genreSelect');
+  var leafGroup = document.getElementById('leafGroup');
+  var barsContainer = document.getElementById('bars');
+  var volume = document.getElementById('volume');
+  var volVal = document.getElementById('volVal');
+  var currentTimeSpan = document.getElementById('currentTime');
+  var durationTimeSpan = document.getElementById('durationTime');
+  var progressBar = document.getElementById('progressBar');
+  var particlesContainer = document.getElementById('particles');
+  var statusElement = document.getElementById('genreDetected');
+
+  // === Particles ===
+  if (particlesContainer) {
+    for (var ii = 0; ii < 40; ii++) {
+      var p = document.createElement('div');
+      p.className = 'particle';
+      p.style.left = Math.random() * 100 + '%';
+      p.style.top = Math.random() * 100 + '%';
+      p.style.animationDelay = Math.random() * 6 + 's';
+      p.style.animationDuration = (4 + Math.random() * 4) + 's';
+      particlesContainer.appendChild(p);
+    }
   }
 
-  // === DOM-Elemente ===
-  const playBtn = document.getElementById('playBtn');
-  const pauseBtn = document.getElementById('stopBtn');
-  const resetBtn = document.getElementById('resetBtn');
-  const fileInput = document.getElementById('fileInput');
-  const sensitivity = document.getElementById('sensitivity');
-  const sensVal = document.getElementById('sensVal');
-  const fileRadio = document.getElementById('fileRadio');
-  const genreSelect = document.getElementById('genreSelect');
-  const leafGroup = document.getElementById('leafGroup');
-  const barsContainer = document.getElementById('bars');
-  const volume = document.getElementById('volume');
-  const volVal = document.getElementById('volVal');
-  const currentTimeSpan = document.getElementById('currentTime');
-  const durationTimeSpan = document.getElementById('durationTime');
-  const progressBar = document.getElementById('progressBar');
-  const startBroadcastBtn = document.getElementById('startBroadcastBtn');
-
-  // === Globale Variablen ===
-  let isSeeking = false;
-  let audioCtx, analyser, dataArray, sourceNode, audioElem, rafId, stream, gainNode;
-  let currentGenre = "classic";
-  const BAR_COUNT = 24;
-
-  // Bars erstellen
-  for (let i = 0; i < BAR_COUNT; i++) {
-    const b = document.createElement('div');
-    b.className = 'bar';
-    barsContainer.appendChild(b);
+  // === Bars ===
+  var BAR_COUNT = 24;
+  if (barsContainer) {
+    for (var ii = 0; ii < BAR_COUNT; ii++) {
+      var b = document.createElement('div');
+      b.className = 'bar';
+      barsContainer.appendChild(b);
+    }
   }
-  const bars = document.querySelectorAll('.bar');
+  var bars = document.querySelectorAll('.bar');
 
-  // === Hilfsfunktionen ===
+  // === GLOBALE VARIABLEN ===
+  var isSeeking = false;
+  var audioCtx = null, analyser = null, dataArray = null, sourceNode = null, audioElem = null, rafId = null, stream = null, gainNode = null;
+  var currentGenre = "classic";
+  var beatHistory = [];
+  var lastPeakTime = 0;
+
+  // === PFLANZENSTATUS ===
+  function plantStatus(bass, mid, high, bpm) {
+    if (high > 0.70) return { text: "?Hohe Frequenzen schaden Blueten", status: "stress" };
+    if (bpm > 140) return { text: "Zu schnell - Pflanze ueberfordert", status: "stress" };
+    if (mid > 0.45 || (bpm > 40 && bpm < 140)) return { text: "Sanfte Toene - optimal fuer Wachstum", status: "optimal" };
+    return { text: "Zu ruhig - wenig Wachstum", status: "warning" };
+  }
+
+  // === HILFSFUNKTIONEN ===
   function formatTime(seconds) {
     if (isNaN(seconds) || seconds === Infinity) return '0:00';
-    const m = Math.floor(seconds / 60);
-    const s = Math.floor(seconds % 60);
-    return `${m}:${s < 10 ? '0' : ''}${s}`;
+    var m = Math.floor(seconds / 60);
+    var s = Math.floor(seconds % 60);
+    return m + ':' + (s < 10 ? '0' + s : s);
   }
 
   function initAudioContext() {
@@ -75,42 +88,60 @@ document.addEventListener('DOMContentLoaded', () => {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       analyser = audioCtx.createAnalyser();
       analyser.fftSize = 2048;
+      var Uint8Array = window.Uint8Array || Array;
       dataArray = new Uint8Array(analyser.frequencyBinCount);
       gainNode = audioCtx.createGain();
-      gainNode.gain.value = volume.value;
+      if (volume) gainNode.gain.value = parseFloat(volume.value) || 0.5;
     }
   }
 
   function stopAll() {
     if (rafId) cancelAnimationFrame(rafId);
-    if (audioElem) { audioElem.pause(); audioElem.src = ''; audioElem = null; }
-    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
-    leafGroup.style.transform = 'translate(100px,110px) rotate(0) scale(1)';
-    bars.forEach(b => b.style.height = '8px');
-    currentTimeSpan.textContent = '0:00';
-    durationTimeSpan.textContent = '0:00';
-    progressBar.value = 0;
-    progressBar.max = 100;
-    document.getElementById("genreDetected").textContent = "–";
+    if (audioElem) { 
+      audioElem.pause(); 
+      audioElem.src = ''; 
+      audioElem = null; 
+    }
+    if (stream) { 
+      stream.getTracks().forEach(function(t) { t.stop(); });
+      stream = null; 
+    }
+    if (leafGroup) {
+      leafGroup.style.fill = "#ffaa00";  // Orange Reset
+      var children = leafGroup.children;
+      for (var ii = 0; ii < children.length; ii++) {
+        children[ii].style.fill = "#ffaa00";
+      }
+      leafGroup.style.transform = 'translate(100px,110px) rotate(0) scale(1)';
+    }
+    for (var ii = 0; ii < bars.length; ii++) {
+      bars[ii].style.height = '8px';
+    }
+    if (currentTimeSpan) currentTimeSpan.textContent = '0:00';
+    if (durationTimeSpan) durationTimeSpan.textContent = '0:00';
+    if (progressBar) { 
+      progressBar.value = 0; 
+      progressBar.max = 100; 
+    }
+    if (statusElement) statusElement.textContent = "-";
     currentGenre = 'classic';
     applyGenreColors(currentGenre);
   }
 
-  function setupAudio(url, isFile = false) {
+  function setupAudio(url, isFile) {
     stopAll();
     initAudioContext();
     audioElem = new Audio();
     audioElem.loop = true;
     audioElem.src = isFile ? URL.createObjectURL(url) : url;
 
-    audioElem.onloadedmetadata = () => {
-      durationTimeSpan.textContent = formatTime(audioElem.duration);
-      progressBar.max = audioElem.duration;
-      audioElem.play().catch(e => console.error(e));
+    audioElem.onloadedmetadata = function() {
+      if (durationTimeSpan) durationTimeSpan.textContent = formatTime(audioElem.duration);
+      if (progressBar) progressBar.max = audioElem.duration;
+      audioElem.play();
     };
 
     audioElem.onended = stopAll;
-
     sourceNode = audioCtx.createMediaElementSource(audioElem);
     sourceNode.connect(analyser);
     analyser.connect(gainNode);
@@ -119,35 +150,42 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function applyGenreColors(genre) {
-    const g = document.querySelector('#g1');
-    if (!g) return;
-    const p = GENRE[genre] || GENRE.classic;
+    var g = document.querySelector('#g1');
+    if (!g || !GENRE[genre]) return;
+    var p = GENRE[genre];
     g.children[0].setAttribute('stop-color', p.colorA);
     g.children[1].setAttribute('stop-color', p.colorB);
   }
 
-  genreSelect.onchange = (e) => {
-    fileRadio.checked = false;
-    currentGenre = e.target.value;
-    applyGenreColors(currentGenre);
-    document.getElementById("genreDetected").textContent = currentGenre.toUpperCase();
-    if (GENRE_SONGS[currentGenre]) setupAudio(GENRE_SONGS[currentGenre], false);
-  };
-
+  // === EVENT LISTENER ===
+  if (genreSelect) {
+    genreSelect.onchange = function(e) {
+      if (fileRadio) fileRadio.checked = false;
+      currentGenre = e.target.value;
+      applyGenreColors(currentGenre);
+      if (statusElement) statusElement.textContent = currentGenre.toUpperCase();
+      if (GENRE_SONGS[currentGenre]) setupAudio(GENRE_SONGS[currentGenre], false);
+    };
+  }
   applyGenreColors(currentGenre);
 
-  // === Audio-Analyse & Animation ===
-  let beatHistory = [];
-  let lastPeakTime = 0;
-
+  // === ANIMATION ===
   function estimateBPM() {
     if (beatHistory.length < 2) return 0;
-    const diffs = beatHistory.slice(1).map((t, i) => t - beatHistory[i]);
-    return Math.round(60 / (diffs.reduce((a,b) => a+b) / diffs.length));
+    var diffs = [];
+    for (var ii = 1; ii < beatHistory.length; ii++) {
+      diffs.push(beatHistory[ii] - beatHistory[ii-1]);
+    }
+    var avgDiff = 0;
+    for (var ii = 0; ii < diffs.length; ii++) {
+      avgDiff += diffs[ii];
+    }
+    avgDiff = avgDiff / diffs.length;
+    return Math.round(60 / avgDiff);
   }
 
   function detectBeat(avg) {
-    const now = audioCtx.currentTime;
+    var now = audioCtx ? audioCtx.currentTime : 0;
     if (avg > 0.25 && now - lastPeakTime > 0.25) {
       lastPeakTime = now;
       beatHistory.push(now);
@@ -155,203 +193,155 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function classifyGenreByData(bpm, spectrum) {
-    let bass = 0, mid = 0, high = 0;
-    for (let i = 0; i < spectrum.length; i++) {
-      const f = i * audioCtx.sampleRate / 2 / spectrum.length;
-      if (f < 200) bass += spectrum[i];
-      else if (f < 2000) mid += spectrum[i];
-      else high += spectrum[i];
-    }
-    const total = bass + mid + high || 1;
-    bass /= total; mid /= total; high /= total;
-
-    if (bpm < 90 && high < 0.2) return "classic";
-    if (bpm >= 70 && bpm <= 120 && mid > 0.4) return "jazz";
-    if (bpm > 80 && bpm < 110 && bass > 0.45) return "hiphop";
-    if (bpm > 120 && high > 0.25) return "techno";
-    return "rock";
-  }
-
   function animate() {
     rafId = requestAnimationFrame(animate);
-    if ((audioElem && !audioElem.paused) || (remoteStream && remoteStream.active)) {
-      if (!isSeeking && audioElem) {
+    if (!analyser || !dataArray) return;
+    
+    if (audioElem && !audioElem.paused) {
+      if (!isSeeking && audioElem && currentTimeSpan && progressBar) {
         currentTimeSpan.textContent = formatTime(audioElem.currentTime);
         progressBar.value = audioElem.currentTime;
       }
 
       analyser.getByteFrequencyData(dataArray);
-      const avg = dataArray.reduce((a,b) => a+b, 0) / dataArray.length / 255;
-
+      
+      // Bass/Mid/High/Avg Berechnung
+      var bassLen = Math.min(32, dataArray.length);
+      var bass = 0;
+      for (var j = 0; j < bassLen; j++) { bass += dataArray[j]; }
+      bass = bass / (bassLen * 255);
+      
+      var midEnd = Math.min(128, dataArray.length);
+      var mid = 0;
+      for (var k = 32; k < midEnd; k++) { mid += dataArray[k]; }
+      mid = mid / ((midEnd-32) * 255);
+      
+      var high = 0;
+      for (var l = midEnd; l < dataArray.length; l++) { high += dataArray[l]; }
+      high = high / ((dataArray.length-midEnd) * 255);
+      
+      var avg = 0;
+      for (var m = 0; m < dataArray.length; m++) { avg += dataArray[m]; }
+      avg = avg / dataArray.length / 255;
+      
       detectBeat(avg);
-      const bpm = estimateBPM();
-      const detected = classifyGenreByData(bpm, dataArray);
-      document.getElementById("genreDetected").textContent = detected + " (erkannt)";
-      currentGenre = detected;
-      applyGenreColors(currentGenre);
+      var bpm = estimateBPM();
+      
+      // PFLANZENSTATUS + VISUELLE KOPPLUNG
+      var plantResult = plantStatus(bass, mid, high, bpm);
+      if (statusElement) {
+        statusElement.textContent = plantResult.text;
+        statusElement.className = plantResult.status;
+      }
 
-      const g = GENRE[currentGenre] || GENRE.classic;
-      const amp = Math.min(1, avg * parseFloat(sensitivity.value) * g.growth * 1.4);
-      const wobble = g.wobble * Math.sin(Date.now() / (250 + g.wobble * 40));
-      const rotate = amp * 32 * g.wobble - 16;
-      const swayX = wobble * 12;
-      const scale = 1 + amp * (0.25 + g.growth * 0.2);
-      const up = amp * (10 + g.growth * 16);
+      var g = GENRE[currentGenre] || GENRE.classic;
+      var sensValue = sensitivity ? parseFloat(sensitivity.value || "1") : 1;
+      var amp = Math.min(1, avg * sensValue * g.growth * 1.4);
 
-      leafGroup.style.transform = `translate(${100 + swayX}px, ${110 - up}px) rotate(${rotate}deg) scale(${scale})`;
+      // BONUS-SYSTEM
+      var growthBonus = 1.0;
+      if (plantResult.status === "optimal") {
+        growthBonus = 1.6; // 60% MEHR Wachstum
+      } else if (plantResult.status === "stress") {
+        growthBonus = 0.4; // 60% WENIGER Wachstum
+      } else if (plantResult.status === "warning") {
+        growthBonus = 0.8; // Etwas gehemmt
+      }
 
-      const step = Math.floor(dataArray.length / BAR_COUNT);
-      bars.forEach((bar, i) => {
-        const val = dataArray[i * step];
-        bar.style.height = Math.max(6, (val / 255) * 80) + 'px';
-      });
+      // Animation MIT BONUS
+      var wobble = g.wobble * Math.sin(Date.now() / (250 + g.wobble * 40));
+      var rotate = amp * 32 * g.wobble - 16;
+      var swayX = wobble * 12;
+      var scale = 1 + amp * (0.25 + g.growth * 0.2) * growthBonus;
+      var up = amp * (10 + g.growth * 16) * growthBonus;
+
+      if (leafGroup) {
+        // DIREKTE SVG-FARBUNG
+        var leafColor = plantResult.status === "optimal" ? "#00ff88" : 
+                        plantResult.status === "stress" ? "#ff4444" : "#ffaa00";
+        
+        // Faerbe Hauptgruppe + alle Kinder
+        leafGroup.style.fill = leafColor;
+        var children = leafGroup.children;
+        for (var ii = 0; ii < children.length; ii++) {
+          children[ii].style.fill = leafColor;
+        }
+        
+        leafGroup.style.transform = 'translate(' + (100 + swayX) + 'px, ' + (110 - up) + 'px) rotate(' + rotate + 'deg) scale(' + scale + ')';
+      }
+
+      // Spektrumanalyse
+      var step = Math.floor(dataArray.length / BAR_COUNT);
+      for (var n = 0; n < bars.length; n++) {
+        var v = dataArray[Math.floor(n * step)] / 255;
+        bars[n].style.height = (8 + v * 120) + 'px';
+      }
     }
   }
 
-  // === Progress Bar ===
-  progressBar.onmousedown = progressBar.ontouchstart = () => {
-    isSeeking = true;
-    if (audioElem && !audioElem.paused) audioElem.pause();
-  };
-  progressBar.oninput = () => {
-    if (isSeeking) currentTimeSpan.textContent = formatTime(progressBar.value);
-  };
-  progressBar.onmouseup = progressBar.ontouchend = () => {
-    isSeeking = false;
-    if (audioElem) {
-      audioElem.currentTime = parseFloat(progressBar.value);
-      if (audioElem.paused) audioElem.play();
-    }
-  };
+  // === BUTTONS ===
+  if (playBtn) {
+    playBtn.addEventListener('click', function() {
+      if (audioElem && audioElem.paused && audioElem.src) {
+        audioElem.play();
+        return;
+      }
+      if (fileRadio && fileRadio.checked && fileInput && fileInput.files[0]) {
+        if (genreSelect) genreSelect.value = "";
+        setupAudio(fileInput.files[0], true);
+      } else if (genreSelect && genreSelect.value && GENRE_SONGS[genreSelect.value]) {
+        currentGenre = genreSelect.value;
+        applyGenreColors(currentGenre);
+        if (statusElement) statusElement.textContent = genreSelect.value.toUpperCase();
+        setupAudio(GENRE_SONGS[currentGenre], false);
+      } else {
+        alert('Bitte waehle eine Audioquelle.');
+      }
+    });
+  }
 
-  // === Button Events  ===
-  playBtn.addEventListener('click', async () => {
-    if (audioElem && audioElem.paused && audioElem.src) {
-      await audioElem.play();
-      animate();
-      return;
-    }
-    if (fileRadio.checked && fileInput.files[0]) {
-      genreSelect.value = "";
-      setupAudio(fileInput.files[0], true);
-    } else if (genreSelect.value && GENRE_SONGS[genreSelect.value]) {
-      currentGenre = genreSelect.value;
-      applyGenreColors(currentGenre);
-      document.getElementById("genreDetected").textContent = currentGenre.toUpperCase();
-      setupAudio(GENRE_SONGS[currentGenre], false);
-    } else {
-      alert('Bitte wähle eine Audioquelle.');
-    }
-  });
-
-  pauseBtn.onclick = () => audioElem?.pause();
-  resetBtn.onclick = stopAll;
-  sensitivity.oninput = () => sensVal.textContent = sensitivity.value;
-  volume.oninput = () => {
-    if (gainNode) gainNode.gain.value = volume.value;
-    volVal.textContent = Number(volume.value).toFixed(2);
-  };
-
-  // === WebRTC: Einmalige Socket-Verbindung ===
-  const ROOM_ID = 'synth-garden-live';
-  const socket = io('http://localhost:3000'); // Später echte URL
-
-  let isBroadcaster = false;
-  let rtcPeers = {};
-  let remoteStream = null;
-
-  // Universelle Peer-Verbindung (für beide Rollen)
-  function createPeerConnection(peerId, stream, isInitiator) {
-    const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
-    rtcPeers[peerId] = pc;
-
-    if (stream) {
-      stream.getAudioTracks().forEach(track => pc.addTrack(track, stream));
-    }
-
-    pc.ontrack = (event) => {
-      if (!remoteStream) remoteStream = new MediaStream();
-      remoteStream.addTrack(event.track);
-      stopAll(); // Lokale Quelle stoppen
-      initAudioContext();
-      sourceNode = audioCtx.createMediaStreamSource(remoteStream);
-      sourceNode.connect(analyser);
-      analyser.connect(gainNode);
-      gainNode.connect(audioCtx.destination);
-      animate();
+  if (pauseBtn) {
+    pauseBtn.onclick = function() {
+      if (audioElem) audioElem.pause();
     };
+  }
 
-    pc.onicecandidate = (e) => {
-      if (e.candidate) {
-        socket.emit('ice-candidate', { target: peerId, candidate: e.candidate });
+  if (resetBtn) {
+    resetBtn.onclick = stopAll;
+  }
+
+  if (sensitivity) {
+    sensitivity.oninput = function() {
+      if (sensVal) sensVal.textContent = sensitivity.value;
+    };
+  }
+
+  if (volume) {
+    volume.oninput = function() {
+      if (gainNode) gainNode.gain.value = parseFloat(volume.value);
+      if (volVal) volVal.textContent = Number(volume.value).toFixed(2);
+    };
+  }
+
+  // === PROGRESS BAR ===
+  if (progressBar) {
+    progressBar.onmousedown = progressBar.ontouchstart = function() {
+      isSeeking = true;
+      if (audioElem && !audioElem.paused) audioElem.pause();
+    };
+    
+    progressBar.oninput = function() {
+      if (isSeeking && currentTimeSpan) {
+        currentTimeSpan.textContent = formatTime(progressBar.value);
       }
     };
-
-    if (isInitiator) {
-      pc.createOffer()
-        .then(offer => pc.setLocalDescription(offer))
-        .then(() => socket.emit('offer', { target: peerId, offer: pc.localDescription }));
-    }
-
-    socket.on('answer', (data) => {
-      if (data.sender === peerId) pc.setRemoteDescription(data.answer);
-    });
-
-    socket.on('offer', async (data) => {
-      if (data.sender === peerId && !isInitiator) {
-        await pc.setRemoteDescription(data.offer);
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-        socket.emit('answer', { target: peerId, answer: pc.localDescription });
+    
+    progressBar.onmouseup = progressBar.ontouchend = function() {
+      isSeeking = false;
+      if (audioElem) {
+        audioElem.currentTime = parseFloat(progressBar.value);
+        if (audioElem.paused) audioElem.play();
       }
-    });
-
-    socket.on('ice-candidate', (data) => {
-      if (data.sender === peerId && data.candidate) {
-        pc.addIceCandidate(data.candidate).catch(() => {});
-      }
-    });
+    };
   }
-
-  // Broadcaster starten
-  async function startBroadcast() {
-    if (isBroadcaster) {
-      alert("Du streamst bereits.");
-      return;
-    }
-
-    let streamToSend = null;
-    if (audioElem && audioElem.src) {
-      streamToSend = audioElem.captureStream?.() || audioElem.mozCaptureStream?.();
-    } else if (stream) {
-      streamToSend = stream;
-    }
-
-    if (!streamToSend || streamToSend.getAudioTracks().length === 0) {
-      alert("Keine Audioquelle aktiv. Starte zuerst eine Wiedergabe.");
-      return;
-    }
-
-    isBroadcaster = true;
-    socket.emit('join-room', ROOM_ID);
-
-    socket.on('peer-joined', (id) => createPeerConnection(id, streamToSend, true));
-    socket.on('existing-peers', (peers) => peers.forEach(id => createPeerConnection(id, streamToSend, true)));
-
-    alert("Live-Stream gestartet!");
-  }
-
-  if (startBroadcastBtn) {
-    startBroadcastBtn.addEventListener('click', startBroadcast);
-  }
-
-  // Viewer-Modus: Immer aktiv (außer wenn Broadcaster)
-  socket.emit('join-room', ROOM_ID);
-  socket.on('peer-joined', (id) => {
-    if (!isBroadcaster) createPeerConnection(id, null, false);
-  });
-  socket.on('existing-peers', (peers) => {
-    if (!isBroadcaster) peers.forEach(id => createPeerConnection(id, null, false));
-  });
 });

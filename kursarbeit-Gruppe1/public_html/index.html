@@ -54,33 +54,32 @@
         </div>
       </section>
     </div>
-	  <p>Erkanntes Genre: <strong id="genreDetected">–</strong></p>
   </main>
 
   <!-- ==== Experience: Blatt reagiert auf Musik ==== -->
   <section id="experience" class="experience-section">
     <div class="card">
-      <div class="stage" id="stage">
-        <svg viewBox="0 0 200 200" id="leafSVG" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <lineargradient id="g1" x1="0" x2="1" y1="0" y2="1">
-              <stop offset="0%" stop-color="#42c98b" />
-              <stop offset="100%" stop-color="#2b8dd6" />
-            </lineargradient>
-            <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
-              <fedropshadow dx="0" dy="8" stdDeviation="10" flood-opacity="0.12" />
-            </filter>
-          </defs>
+	<div class="stage" id="stage">
+	  <svg viewBox="0 0 200 200" id="leafSVG" xmlns="http://www.w3.org/2000/svg">
+		<defs>
+		  <lineargradient id="g1" x1="0" x2="1" y1="0" y2="1">
+			<stop offset="0%" stop-color="#42c98b" />
+			<stop offset="100%" stop-color="#2b8dd6" />
+		  </lineargradient>
+		  <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+			<fedropshadow dx="0" dy="8" stdDeviation="10" flood-opacity="0.12" />
+		  </filter>
+		</defs>
+		<g id="leafGroup" filter="url(#shadow)" transform="translate(100 110)">
+		  <path d="M-4 40 C -2 20 2 10 18 -12" stroke="#6b8" stroke-width="3" fill="none" stroke-linecap="round"/>
+		  <path id="leafPath" d="M-40 -8 C -30 -50 30 -50 40 -8 C 30 30 -30 30 -40 -8 Z" fill="url(#g1)" />
+		  <path d="M-2 -12 L -8 2" stroke="#ffffff80" stroke-width="1" stroke-linecap="round"/>
+		  <path d="M2 -12 L 8 2" stroke="#ffffff60" stroke-width="1" stroke-linecap="round"/>
+		</g>
+	  </svg>
+	  <div class="bars" id="bars"></div>
+	</div>
 
-          <g id="leafGroup" filter="url(#shadow)" transform="translate(100 110)">
-            <path d="M-4 40 C -2 20 2 10 18 -12" stroke="#6b8" stroke-width="3" fill="none" stroke-linecap="round"/>
-            <path id="leafPath" d="M-40 -8 C -30 -50 30 -50 40 -8 C 30 30 -30 30 -40 -8 Z" fill="url(#g1)" />
-            <path d="M-2 -12 L -8 2" stroke="#ffffff80" stroke-width="1" stroke-linecap="round"/>
-            <path d="M2 -12 L 8 2" stroke="#ffffff60" stroke-width="1" stroke-linecap="round"/>
-          </g>
-        </svg>
-        <div class="bars" id="bars"></div>
-      </div>
 
       <div class="controls">
         <h3>Steuerung</h3>
@@ -112,31 +111,28 @@
   <label for="volume">Lautstärke:<span id="volVal">1.00</span></label>
   <input type="range" id="volume" min="0" max="1" step="0.01" value="1">
   
-
   
-  <label>Genre:</label>
-<select id="genreSelect">
-  <option value="classic">Klassik</option>
-  <option value="jazz">Jazz</option>
-  <option value="rock">Rock</option>
-  <option value="techno">Techno</option>
-  <option value="hiphop">Hip-Hop</option>
-</select>
-</div>
-		
+<div style="margin-top:20px; border-top:1px solid #ddd; padding-top:10px;">
+  <label>Pflanzen Wohlbefinden: <strong id="genreDetected">–</strong></label>
+  <br>
+  <label for="genreSelect" style="margin-top:6px; display:block;">Genre auswählen:</label>
+  <select id="genreSelect" style="width:100%; padding:6px; border-radius:6px;">
+    <option value="classic">Klassik</option>
+    <option value="jazz">Jazz</option>
+    <option value="rock">Rock</option>
+    <option value="techno">Techno</option>
+    <option value="hiphop">Hip-Hop</option>
+  </select>
+</div>		
       </div>
-  
+      </div>  
   </section>
 
   <footer>
     <p>&copy; 2025 Synth Garden – Eine interaktive Klang-Visualisierung</p>
   </footer>
-	<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-	<script src="js/main.js"></script>
-	
-	<script src="https://cdn.jsdelivr.net/npm/p5@1.6.0/lib/p5.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/p5@1.6.0/lib/addons/p5.sound.min.js"></script>
-	<script src="js/p5.js"></script>
+
+<script src="js/main.js"></script>
 
 
 </body>
