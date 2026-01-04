@@ -153,9 +153,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
   /* AUDIO SETUP */
   function setupAudio(url, isFile) {
-    currentSourceType = 'genre';
     stopAll();
-    initAudioContext();
+	currentSourceType = isFile ? 'file' : 'genre';    
+	initAudioContext();
     audioElem = new Audio();
     audioElem.loop = true;
     audioElem.src = isFile ? URL.createObjectURL(url) : url;
@@ -463,7 +463,8 @@ if (PeerClass) {
   if (genreSelect) {
     genreSelect.onchange = function(e) {
       if (fileRadio) fileRadio.checked = false;
-      currentGenre = e.target.value;
+      currentGenre = e.target.value; 
+	currentSourceType = 'genre';
       applyGenreColors(currentGenre);
       if (statusElement) statusElement.textContent = currentGenre.toUpperCase();
       if (GENRE_SONGS[currentGenre]) setupAudio(GENRE_SONGS[currentGenre], false);
