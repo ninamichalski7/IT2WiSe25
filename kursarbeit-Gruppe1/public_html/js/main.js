@@ -1,5 +1,4 @@
-/* global Peer */
-/* eslint no-undef: "off" */
+/* main.js - Synth Garden - KORRIGIERTE VERSION */
 
 document.addEventListener('DOMContentLoaded', function() {
   
@@ -197,7 +196,13 @@ document.addEventListener('DOMContentLoaded', function() {
       localStream = stream;
       currentSourceType = 'mic';
       
-      peer = new Peer();
+      var PeerClass = window.Peer;
+if (PeerClass) {
+  peer = new PeerClass();
+} else {
+  updateStreamStatus("PeerJS nicht geladen");
+  return;
+}
       
       peer.on('open', function(id) {
         document.getElementById('peerIdDisplay').textContent = id;
@@ -478,8 +483,8 @@ document.addEventListener('DOMContentLoaded', function() {
       currentSourceType = 'remoteMic';
       updateStreamStatus("🔄 Verbinde mit Streamer...");
       
-      var PeerClass = (typeof Peer !== 'undefined') ? Peer : null;
-      if (!PeerClass) {
+		var PeerClass = (typeof window !== 'undefined' && window.Peer) ? window.Peer : null;
+		if (!PeerClass) {
         updateStreamStatus("PeerJS nicht verfügbar");
         return;
       }
