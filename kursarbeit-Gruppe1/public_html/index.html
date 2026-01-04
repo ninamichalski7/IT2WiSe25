@@ -87,9 +87,11 @@
   <label><input type="radio" name="src" value="file" id="fileRadio" checked> Audio-Datei</label>
   <input type="file" id="fileInput" accept="audio/*" />
 	<div style="margin-top:20px;">
-	  <button id="startBroadcastBtn" style="background:#22c55e; padding:10px 20px; border-radius:8px; color:white; font-weight:600;">
+	  <button id="startBroadcastBtn" style="background:#22c55e;padding:10px 20px;border-radius:8px;color:white;font-weight:600;">
 		⏺️ Live streamen
 	  </button>
+	  <div id="streamStatus" style="margin-top:8px;font-size:0.9em;color:#666;">Stream: Gestoppt</div>
+	  <div id="peerIdDisplay" style="margin-top:4px;font-family:monospace;background:#f3f4f6;padding:4px;border-radius:4px;display:none;"></div>
 	</div>
 
   <div style="margin-top:12px">
@@ -114,6 +116,13 @@
   
 <div style="margin-top:20px; border-top:1px solid #ddd; padding-top:10px;">
   <label>Pflanzen Wohlbefinden: <strong id="genreDetected">–</strong></label>
+  <div id="stabilityContainer" style="margin-top:8px;">
+    <div id="stabilityBar" style="height:20px;background:#e2e8f0;border-radius:10px;overflow:hidden;margin-top:4px;">
+      <div id="stabilityFill" style="height:100%;background:linear-gradient(90deg,#10b981,#34d399);width:0%;transition:width 0.3s ease;position:relative;"></div>
+    </div>
+    <div id="stabilityText" style="font-size:0.85em;color:#666;margin-top:4px;">Stabilität: 0%</div>
+  </div>
+
   <br>
   <label for="genreSelect" style="margin-top:6px; display:block;">Genre auswählen:</label>
   <select id="genreSelect" style="width:100%; padding:6px; border-radius:6px;">
@@ -131,7 +140,8 @@
   <footer>
     <p>&copy; 2025 Synth Garden – Eine interaktive Klang-Visualisierung</p>
   </footer>
-
+	
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <script src="js/main.js"></script>
 
 

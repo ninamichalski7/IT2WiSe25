@@ -248,6 +248,30 @@ nav {
 #genreDetected.warning { color: #ffaa00; font-weight: bold; }
 #genreDetected.stress { color: #ff4444; font-weight: bold; }
 
+#stabilityFill {
+  position: relative;
+  overflow: hidden;
+}
+
+#stabilityFill::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 200%;
+  height: 100%;
+  background: linear-gradient(90deg, 
+    transparent, 
+    rgba(255,255,255,0.4), 
+    transparent
+  );
+  animation: audioWave 2s linear infinite;
+}
+
+@keyframes audioWave {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
 
 /* === Particles (Hintergrund) === */
 .particles {
@@ -367,7 +391,7 @@ svg {
   display: flex;
   gap: 3px;
   align-items: end;
-  z-index: 10;                /* ← Sicher über dem SVG */
+  z-index: 10;                
   pointer-events: none;
 }
 
