@@ -386,6 +386,28 @@ if (PeerClass) {
     }
   }
 
+	function resetPlantVisuals() {
+  if (!leafGroup) return;
+
+  // Grundfarbe des Genres
+  var baseColor = GENRE[currentGenre]?.colorA || "#ffaa00";
+
+  leafGroup.style.fill = baseColor;
+  leafGroup.style.transform = 'translate(100px,110px) rotate(0deg) scale(1)';
+
+  var children = leafGroup.children;
+  for (var i = 0; i < children.length; i++) {
+    children[i].style.fill = baseColor;
+  }
+
+  // Status-Tracking zurücksetzen
+  statusHistory = [];
+  beatHistory = [];
+  lastPeakTime = 0;
+}
+
+	
+	
   /* EVENT HANDLER */
   if (playBtn) {
     playBtn.addEventListener('click', function() {
@@ -463,9 +485,12 @@ if (PeerClass) {
   if (genreSelect) {
     genreSelect.onchange = function(e) {
       if (fileRadio) fileRadio.checked = false;
-      currentGenre = e.target.value; 
-	currentSourceType = 'genre';
-      applyGenreColors(currentGenre);
+      currentGenre = e.target.value;
+  	currentSourceType = 'genre';
+
+  	applyGenreColors(currentGenre);
+  	resetPlantVisuals(); 
+
       if (statusElement) statusElement.textContent = currentGenre.toUpperCase();
       if (GENRE_SONGS[currentGenre]) setupAudio(GENRE_SONGS[currentGenre], false);
     };
