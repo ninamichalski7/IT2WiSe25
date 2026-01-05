@@ -72,7 +72,11 @@ function startAnimation() {
     var bassLen = Math.min(32, dataArray.length);
     var bass = 0;
     for (var i = 0; i < bassLen; i++) bass += dataArray[i];
-    bass = bass / (bassLen * 255);
+    bass = bass / (bassLen * 255);  
+	/* Visuals global verfügbar machen */
+	window.audioFeatures = window.audioFeatures || {};
+	window.audioFeatures.bass = bass;
+
 
     // Leaf Animation
     if (leafGroup) {
