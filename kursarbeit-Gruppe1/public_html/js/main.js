@@ -1,7 +1,7 @@
-// main.js
+// main.js (
 
-document.addEventListener('DOMContentLoaded', function() {
-  
+document.addEventListener('DOMContentLoaded', function () {
+
   /* KONFIGURATION */
   var GENRE_SONGS = {
     classic: 'musik/classic.mp3',
@@ -38,6 +38,11 @@ document.addEventListener('DOMContentLoaded', function() {
   var particlesContainer = document.getElementById('particles');
   var statusElement = document.getElementById('genreDetected');
 
+  // Optional: UI-Elemente für Stream/Peer-ID (falls vorhanden)
+  var peerIdDisplay = document.getElementById('peerIdDisplay');
+  var streamStatusEl = document.getElementById('streamStatus');
+  var broadcastBtn = document.getElementById('startBroadcastBtn'); // wird nicht genutzt
+
   /* PARTICLES ERSTELLEN */
   if (particlesContainer) {
     for (var ii = 0; ii < 40; ii++) {
@@ -67,32 +72,35 @@ document.addEventListener('DOMContentLoaded', function() {
   var isSeeking = false;
   var audioCtx = null, analyser = null, dataArray = null;
   var sourceNode = null, audioElem = null, rafId = null;
-  var stream = null, gainNode = null;
+  var gainNode = null;
   var currentGenre = "classic";
   var currentSourceType = "none";
   var beatHistory = [];
   var lastPeakTime = 0;
   var statusHistory = [];
   var STATUS_WINDOW = 30;
-  var localStream = null;
+
+  // Streaming (Host)
   var peer = null;
   var currentCall = null;
-  var isStreaming = false;
   var streamDest = null;
 
-  /* Pflanzenstatus */
+  /* ===== Helpers ===== */
+  function updateStreamStatus(text) {
+    if (streamStatusEl) streamStatusEl.textContent = text;
+  }
+
   function plantStatus(bass, mid, high, bpm) {
     if (currentGenre === "techno" && (bass > 0.45 || bpm > 130)) {
       return { text: "Techno zu aggressiv für Blüten", status: "stress" };
     }
     if (high > 0.70) return { text: "Hohe Frequenzen schaden Blüten", status: "stress" };
-    if (bpm > 140) return { text: "Zu schnell - Pflanze Überfordert", status: "stress" };
+    if (bpm > 140) return { text: "Zu schnell - Pflanze überfordert", status: "stress" };
     if (bass > 0.65) return { text: "Zu basslastig - Wurzeln überfordert", status: "stress" };
     if (mid > 0.45 || (bpm < 140)) return { text: "Sanfte Töne - optimal für Wachstum", status: "optimal" };
     return { text: "Zu ruhig - wenig Wachstum", status: "warning" };
   }
 
-  /* Zeit formatieren */
   function formatTime(seconds) {
     if (isNaN(seconds) || seconds === Infinity) return '0:00';
     var m = Math.floor(seconds / 60);
@@ -104,168 +112,97 @@ document.addEventListener('DOMContentLoaded', function() {
   function initAudioContext() {
     if (!audioCtx) {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
       analyser = audioCtx.createAnalyser();
       analyser.fftSize = 2048;
-      var Uint8Array = window.Uint8Array || Array;
-      dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+      var UA = window.Uint8Array || Array;
+      dataArray = new UA(analyser.frequencyBinCount);
+
       gainNode = audioCtx.createGain();
       if (volume) gainNode.gain.value = parseFloat(volume.value) || 0.5;
-		streamDest = audioCtx.createMediaStreamDestination();
-		gainNode.connect(streamDest);
+
+      // Das ist der Stream, den wir an Viewer senden:
+      streamDest = audioCtx.createMediaStreamDestination();
+      gainNode.connect(streamDest);
     }
   }
 
-  /* Alles zurÃ¼cksetzen */
-  function stopAll() {
-    if (rafId) cancelAnimationFrame(rafId);
-    if (audioElem) { 
-      audioElem.pause(); 
-      audioElem.src = ''; 
-      audioElem = null; 
+  /* Peer Host erzeugen */
+  function ensurePeerHost() {
+    if (peer) return;
+
+    var PeerClass = window.Peer;
+    if (!PeerClass) {
+      updateStreamStatus("PeerJS nicht geladen (Script in HTML prüfen)");
+      return;
     }
-    if (stream) { 
-      stream.getTracks().forEach(function(t) { t.stop(); });
-      stream = null; 
-    }
-    
-    if (leafGroup) {
-      leafGroup.style.fill = "#ffaa00";
-      var children = leafGroup.children;
-      for (var ii = 0; ii < children.length; ii++) {
-        children[ii].style.fill = "#ffaa00";
+
+    peer = new PeerClass({
+      host: window.location.hostname,
+      port: 9000,
+      path: "/peerjs"
+    });
+
+    peer.on('open', function (id) {
+      if (peerIdDisplay) {
+        peerIdDisplay.textContent = id;
+        peerIdDisplay.style.display = 'block';
       }
-      leafGroup.style.transform = 'translate(100px,110px) rotate(0) scale(1)';
-    }
-    
-    for (var iiii = 0; iiii < bars.length; iiii++) {
-      bars[iiii].style.height = '8px';
-    }
-    
-    if (currentTimeSpan) currentTimeSpan.textContent = '0:00';
-    if (durationTimeSpan) durationTimeSpan.textContent = '0:00';
-    if (progressBar) { 
-      progressBar.value = 0; 
-      progressBar.max = 100; 
-    }
-    if (statusElement) statusElement.textContent = "-";
-    
-    currentGenre = 'classic';
-    currentSourceType = "none";
-    applyGenreColors(currentGenre);
-  }
+      updateStreamStatus("LIVE – Host bereit (Audio-Dateien). Peer-ID an Viewer geben.");
+    });
 
-  /* AUDIO SETUP */
-  function setupAudio(url, isFile) {
-    stopAll();
-	currentSourceType = isFile ? 'file' : 'genre';    
-	initAudioContext();
-    audioElem = new Audio();
-    audioElem.loop = true;
-    audioElem.src = isFile ? URL.createObjectURL(url) : url;
+    peer.on('call', function (call) {
+      currentCall = call;
 
-    audioElem.onloadedmetadata = function() {
-      if (durationTimeSpan) durationTimeSpan.textContent = formatTime(audioElem.duration);
-      if (progressBar) progressBar.max = audioElem.duration;
-      audioElem.play();
-    };
-
-    audioElem.onended = stopAll;
-    sourceNode = audioCtx.createMediaElementSource(audioElem);
-    sourceNode.connect(analyser);
-    analyser.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-    animate();
-  }
-
-  /* === MIKROFON STREAM TOGGLE === */
-  function toggleMicrophoneStream() {
-    if (isStreaming) {
-      stopMicrophoneStream();
-    } else {
-      startMicrophoneStream();
-    }
-  }
-
-  function startMicrophoneStream() {
-    navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: false,
-        noiseSuppression: false,
-        autoGainControl: false,
-        sampleRate: 44100,
-        channelCount: 1
+      var outStream = (streamDest && streamDest.stream) ? streamDest.stream : null;
+      if (!outStream) {
+        updateStreamStatus("⚠️ Kein Audio-Stream: erst Play drücken.");
+        return;
       }
-    }).then(function(stream) {
-      localStream = stream;
-      currentSourceType = 'mic';
-      
-var PeerClass = window.Peer;
-if (PeerClass) {
-  peer = new Peer({
-  host: window.location.hostname,
-  port: 9000,
-  path: "/peerjs"
-});
 
-} else {
-  updateStreamStatus("PeerJS nicht geladen");
-  return;
-}
-      
-      peer.on('open', function(id) {
-        document.getElementById('peerIdDisplay').textContent = id;
-        document.getElementById('peerIdDisplay').style.display = 'block';
-        updateStreamStatus("LIVE - Peer-ID: Kopiere für Zuschauer");
-      });
-      
-      peer.on('call', function(call) {
-        currentCall = call;
-        call.answer(localStream);
-        updateStreamStatus("✅ Zuschauer verbunden!");
-      });
-      
-      if (!audioCtx) initAudioContext();
-      var micSource = audioCtx.createMediaStreamSource(localStream);
-      if (sourceNode) sourceNode.disconnect();
-      sourceNode = micSource;
-      sourceNode.connect(analyser);
-      
-      isStreaming = true;
-      document.getElementById('startBroadcastBtn').innerHTML = '⏺️ Stream stoppen';
-      
-    }).catch(function(err) {
-      alert("Mikrofon Fehler: " + err.message + "\nTipp: Mikrofon freigeben!");
+      call.answer(outStream);
+      updateStreamStatus("✅ Zuschauer verbunden");
+    });
+
+    peer.on('error', function (err) {
+      console.error(err);
+      updateStreamStatus("Peer Fehler: " + ((err && (err.type || err.message)) || "unbekannt"));
     });
   }
 
-  function stopMicrophoneStream() {
-    if (localStream) {
-      localStream.getTracks().forEach(function(track) { 
-        track.stop(); 
-      });
-      localStream = null;
+  /* Alles zurücksetzen */
+  function stopAll() {
+    if (rafId) cancelAnimationFrame(rafId);
+
+    if (audioElem) {
+      audioElem.pause();
+      audioElem.src = '';
+      audioElem = null;
     }
-    if (currentCall) {
-      currentCall.close();
-      currentCall = null;
+
+    // Visual reset
+    if (leafGroup) {
+      leafGroup.style.fill = "#ffaa00";
+      var children = leafGroup.children;
+      for (var i = 0; i < children.length; i++) children[i].style.fill = "#ffaa00";
+      leafGroup.style.transform = 'translate(100px,110px) rotate(0) scale(1)';
     }
-    if (peer) {
-      peer.destroy();
-      peer = null;
-    }
-    
-    isStreaming = false;
-    document.getElementById('startBroadcastBtn').innerHTML = '▶️ Live streamen';
-    document.getElementById('peerIdDisplay').style.display = 'none';
-    updateStreamStatus("Stream: Gestoppt");
+
+    for (var j = 0; j < bars.length; j++) bars[j].style.height = '8px';
+
+    if (currentTimeSpan) currentTimeSpan.textContent = '0:00';
+    if (durationTimeSpan) durationTimeSpan.textContent = '0:00';
+    if (progressBar) { progressBar.value = 0; progressBar.max = 100; }
+    if (statusElement) statusElement.textContent = "-";
+
+    currentGenre = 'classic';
+    currentSourceType = "none";
+    applyGenreColors(currentGenre);
+
+    // Stream bleibt absichtlich aktiv (Peer bleibt), damit Viewer nicht dauernd neu koppeln muss
   }
 
-  function updateStreamStatus(text) {
-    var statusEl = document.getElementById('streamStatus');
-    if (statusEl) statusEl.textContent = text;
-  }
-
-  /* === GENRE FARBEN ANWENDEN === */
   function applyGenreColors(genre) {
     var g = document.querySelector('#g1');
     if (!g || !GENRE[genre]) return;
@@ -274,18 +211,14 @@ if (PeerClass) {
     g.children[1].setAttribute('stop-color', p.colorB);
   }
 
-  /* BPM */
   function estimateBPM() {
     if (beatHistory.length < 2) return 0;
     var diffs = [];
-    for (var ii = 1; ii < beatHistory.length; ii++) {
-      diffs.push(beatHistory[ii] - beatHistory[ii-1]);
-    }
-    var avgDiff = diffs.reduce(function(a, b) { return a + b; }, 0) / diffs.length;
+    for (var i = 1; i < beatHistory.length; i++) diffs.push(beatHistory[i] - beatHistory[i - 1]);
+    var avgDiff = diffs.reduce(function (a, b) { return a + b; }, 0) / diffs.length;
     return Math.round(60 / avgDiff);
   }
 
-  /* Beat erkennen */
   function detectBeat(avg) {
     var now = audioCtx ? audioCtx.currentTime : 0;
     if (avg > 0.25 && now - lastPeakTime > 0.25) {
@@ -295,50 +228,92 @@ if (PeerClass) {
     }
   }
 
-  /* Hauptanimation */
+  /* AUDIO SETUP (Genre/File) */
+  function setupAudio(url, isFile) {
+    stopAll();
+    currentSourceType = isFile ? 'file' : 'genre';
+
+    initAudioContext();
+
+    audioElem = new Audio();
+    audioElem.loop = true;
+    audioElem.src = isFile ? URL.createObjectURL(url) : url;
+
+    audioElem.onloadedmetadata = function () {
+      if (durationTimeSpan) durationTimeSpan.textContent = formatTime(audioElem.duration);
+      if (progressBar) progressBar.max = audioElem.duration;
+
+      // Autoplay kann blockieren → Play-Click ist aber meist User-Geste, daher ok:
+      audioElem.play().catch(function () {
+        // Falls blockiert
+      });
+    };
+
+    audioElem.onended = stopAll;
+
+    // MediaElement -> WebAudio Graph
+    if (sourceNode) { try { sourceNode.disconnect(); } catch (e) {} }
+
+    sourceNode = audioCtx.createMediaElementSource(audioElem);
+    sourceNode.connect(analyser);
+    analyser.connect(gainNode);
+
+    // lokal hören
+    gainNode.connect(audioCtx.destination);
+
+    // Peer host bereit machen (einmalig)
+    ensurePeerHost();
+
+    animate();
+  }
+
+  /* Hauptanimation (Host-Visuals + Export Bass für p5 falls gebraucht) */
   function animate() {
     rafId = requestAnimationFrame(animate);
     if (!analyser || !dataArray || (!audioElem && !sourceNode)) return;
-    
+
     if (!isSeeking && currentTimeSpan && progressBar && audioElem) {
       currentTimeSpan.textContent = formatTime(audioElem.currentTime);
       progressBar.value = audioElem.currentTime;
     }
 
     analyser.getByteFrequencyData(dataArray);
-    
+
     var bassLen = Math.min(32, dataArray.length);
     var bass = 0;
-    for (var j = 0; j < bassLen; j++) { bass += dataArray[j]; }
+    for (var j = 0; j < bassLen; j++) bass += dataArray[j];
     bass = bass / (bassLen * 255);
-    
+
     var midEnd = Math.min(128, dataArray.length);
     var mid = 0;
-    for (var k = 32; k < midEnd; k++) { mid += dataArray[k]; }
-    mid = mid / ((midEnd-32) * 255);
-    
+    for (var k = 32; k < midEnd; k++) mid += dataArray[k];
+    mid = mid / ((midEnd - 32) * 255);
+
     var high = 0;
-    for (var l = midEnd; l < dataArray.length; l++) { high += dataArray[l]; }
-    high = high / ((dataArray.length-midEnd) * 255);
-    
+    for (var l = midEnd; l < dataArray.length; l++) high += dataArray[l];
+    high = high / ((dataArray.length - midEnd) * 255);
+
     var avg = 0;
-    for (var m = 0; m < dataArray.length; m++) { avg += dataArray[m]; }
+    for (var m = 0; m < dataArray.length; m++) avg += dataArray[m];
     avg = avg / dataArray.length / 255;
-    
+
     detectBeat(avg);
     var bpm = estimateBPM();
     var plantResult = plantStatus(bass, mid, high, bpm);
-    
-    /* Status update mit Quelle */
+
+    // Optional: Werte global bereitstellen (z.B. wenn Host auch p5 nutzt)
+    window.audioFeatures = window.audioFeatures || {};
+    window.audioFeatures.bass = bass;
+
     if (statusElement) {
       statusElement.textContent = plantResult.text + " (" + currentSourceType + ")";
       statusElement.className = plantResult.status;
     }
-    
+
     statusHistory.push(plantResult.status);
     if (statusHistory.length > STATUS_WINDOW) statusHistory.shift();
 
-    var optimalCount = statusHistory.filter(function(s) { return s === "optimal"; }).length;
+    var optimalCount = statusHistory.filter(function (s) { return s === "optimal"; }).length;
     var stabilityPct = Math.round((optimalCount / Math.max(1, statusHistory.length)) * 100);
 
     var stabilityFill = document.getElementById('stabilityFill');
@@ -346,7 +321,7 @@ if (PeerClass) {
     if (stabilityFill && stabilityText) {
       stabilityFill.style.width = stabilityPct + '%';
       stabilityText.textContent = 'Stabilität: ' + stabilityPct + '%';
-      
+
       if (stabilityPct >= 70) {
         stabilityFill.style.background = 'linear-gradient(90deg,#10b981,#34d399)';
         stabilityFill.style.boxShadow = '0 0 10px rgba(16,185,129,0.5)';
@@ -375,16 +350,15 @@ if (PeerClass) {
     var up = amp * (10 + g.growth * 16) * growthBonus;
 
     if (leafGroup) {
-      var leafColor = plantResult.status === "optimal" ? "#00ff88" : 
-                      plantResult.status === "stress" ? "#ff4444" : "#ffaa00";
-      
+      var leafColor = plantResult.status === "optimal" ? "#00ff88" :
+        plantResult.status === "stress" ? "#ff4444" : "#ffaa00";
+
       leafGroup.style.fill = leafColor;
       var children = leafGroup.children;
-      for (var ii = 0; ii < children.length; ii++) {
-        children[ii].style.fill = leafColor;
-      }
-      
-      leafGroup.style.transform = 'translate(' + (100 + swayX) + 'px, ' + (110 - up) + 'px) rotate(' + rotate + 'deg) scale(' + scale + ')';
+      for (var ii = 0; ii < children.length; ii++) children[ii].style.fill = leafColor;
+
+      leafGroup.style.transform =
+        'translate(' + (100 + swayX) + 'px, ' + (110 - up) + 'px) rotate(' + rotate + 'deg) scale(' + scale + ')';
     }
 
     var step = Math.floor(dataArray.length / BAR_COUNT);
@@ -394,36 +368,29 @@ if (PeerClass) {
     }
   }
 
-	function resetPlantVisuals() {
-  if (!leafGroup) return;
+  function resetPlantVisuals() {
+    if (!leafGroup) return;
 
-  // Grundfarbe des Genres
-  var baseColor = (GENRE[currentGenre] && GENRE[currentGenre].colorA) ? GENRE[currentGenre].colorA : "#ffaa00";
+    var baseColor = (GENRE[currentGenre] && GENRE[currentGenre].colorA) ? GENRE[currentGenre].colorA : "#ffaa00";
+    leafGroup.style.fill = baseColor;
+    leafGroup.style.transform = 'translate(100px,110px) rotate(0deg) scale(1)';
 
-  leafGroup.style.fill = baseColor;
-  leafGroup.style.transform = 'translate(100px,110px) rotate(0deg) scale(1)';
+    var children = leafGroup.children;
+    for (var i = 0; i < children.length; i++) children[i].style.fill = baseColor;
 
-  var children = leafGroup.children;
-  for (var i = 0; i < children.length; i++) {
-    children[i].style.fill = baseColor;
+    statusHistory = [];
+    beatHistory = [];
+    lastPeakTime = 0;
   }
 
-  // Status-Tracking zurücksetzen
-  statusHistory = [];
-  beatHistory = [];
-  lastPeakTime = 0;
-}
-
-	
-	
   /* EVENT HANDLER */
   if (playBtn) {
-    playBtn.addEventListener('click', function() {
+    playBtn.addEventListener('click', function () {
       if (audioElem && audioElem.paused && audioElem.src) {
-        audioElem.play();
+        audioElem.play().catch(function(){});
         return;
       }
-      
+
       if (fileRadio && fileRadio.checked && fileInput && fileInput.files[0]) {
         if (genreSelect) genreSelect.value = "";
         currentSourceType = 'file';
@@ -435,15 +402,15 @@ if (PeerClass) {
         applyGenreColors(currentGenre);
         if (statusElement) statusElement.textContent = genreSelect.value.toUpperCase();
         setupAudio(GENRE_SONGS[currentGenre], false);
-      } 
+      }
       else {
-        alert('Bitte wäle eine Audioquelle.');
+        alert('Bitte wähle eine Audioquelle.');
       }
     });
   }
 
   if (pauseBtn) {
-    pauseBtn.onclick = function() {
+    pauseBtn.onclick = function () {
       if (audioElem) audioElem.pause();
     };
   }
@@ -453,100 +420,61 @@ if (PeerClass) {
   }
 
   if (sensitivity) {
-    sensitivity.oninput = function() {
+    sensitivity.oninput = function () {
       if (sensVal) sensVal.textContent = sensitivity.value;
     };
   }
 
   if (volume) {
-    volume.oninput = function() {
+    volume.oninput = function () {
       if (gainNode) gainNode.gain.value = parseFloat(volume.value);
       if (volVal) volVal.textContent = Number(volume.value).toFixed(2);
     };
   }
 
   if (progressBar) {
-    var handleStart = function() {
+    var handleStart = function () {
       isSeeking = true;
       if (audioElem && !audioElem.paused) audioElem.pause();
     };
-    
-    var handleMove = function() {
-      if (isSeeking && currentTimeSpan) {
-        currentTimeSpan.textContent = formatTime(progressBar.value);
-      }
+
+    var handleMove = function () {
+      if (isSeeking && currentTimeSpan) currentTimeSpan.textContent = formatTime(progressBar.value);
     };
-    
-    var handleEnd = function() {
+
+    var handleEnd = function () {
       isSeeking = false;
       if (audioElem) {
         audioElem.currentTime = parseFloat(progressBar.value);
-        if (audioElem.paused) audioElem.play();
+        audioElem.play().catch(function(){});
       }
     };
-    
+
     progressBar.onmousedown = progressBar.ontouchstart = handleStart;
     progressBar.oninput = handleMove;
     progressBar.onmouseup = progressBar.ontouchend = handleEnd;
   }
 
   if (genreSelect) {
-    genreSelect.onchange = function(e) {
+    genreSelect.onchange = function (e) {
       if (fileRadio) fileRadio.checked = false;
-      currentGenre = e.target.value;
-  	currentSourceType = 'genre';
 
-  	applyGenreColors(currentGenre);
-  	resetPlantVisuals(); 
+      currentGenre = e.target.value;
+      currentSourceType = 'genre';
+
+      applyGenreColors(currentGenre);
+      resetPlantVisuals();
 
       if (statusElement) statusElement.textContent = currentGenre.toUpperCase();
       if (GENRE_SONGS[currentGenre]) setupAudio(GENRE_SONGS[currentGenre], false);
     };
   }
 
-  /* === STREAM BUTTON === */
-  var broadcastBtn = document.getElementById('startBroadcastBtn');
+  // Mic-Button nicht nutzen → optional ausblenden
   if (broadcastBtn) {
-    broadcastBtn.addEventListener('click', toggleMicrophoneStream);
-  }
-
-  /* === ZUSCHAUER AUTO-CONNECT === */
-  function connectAsViewer() {
-    var peerId = window.location.hash.slice(1);
-    if (peerId && !isStreaming) {
-      currentSourceType = 'remoteMic';
-      updateStreamStatus("Verbinde mit Streamer...");
-      
-		var PeerClass = (typeof window !== 'undefined' && window.Peer) ? window.Peer : null;
-		if (!PeerClass) {
-        updateStreamStatus("PeerJS nicht verfügbar");
-        return;
-      }
-      
-      peer = new PeerClass();
-      
-      peer.on('open', function() {
-        navigator.mediaDevices.getUserMedia({ audio: true }).then(function(viewerStream) {
-          var call = peer.call(peerId, viewerStream);
-          
-          call.on('stream', function(remoteStream) {
-            if (!audioCtx) initAudioContext();
-            var remoteSource = audioCtx.createMediaStreamSource(remoteStream);
-            if (sourceNode) sourceNode.disconnect();
-            sourceNode = remoteSource;
-            sourceNode.connect(analyser);
-            
-            updateStreamStatus("Mit Streamer verbunden");
-            isStreaming = true;
-            animate();
-          });
-        }).catch(function(err) {
-          updateStreamStatus("Viewer Fehler: " + err.message);
-        });
-      });
-    }
+    broadcastBtn.style.display = "none";
   }
 
   applyGenreColors(currentGenre);
-  connectAsViewer();
+  updateStreamStatus("Host bereit. Wähle Genre + Play, dann Peer-ID an Viewer geben.");
 });

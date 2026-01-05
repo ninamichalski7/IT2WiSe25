@@ -9,8 +9,24 @@ var dataArray = null;
 var sourceNode = null;
 var rafId = null;
 
-var BAR_COUNT = 24;
-var bars = [];
+
+
+function createSilentAudioStream() {
+  var AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  var ctx = new AudioContextClass();
+
+  // Stummer Oscillator (Gain = 0)
+  var osc = ctx.createOscillator();
+  var gain = ctx.createGain();
+  gain.gain.value = 0;
+
+  var dest = ctx.createMediaStreamDestination();
+  osc.connect(gain);
+  gain.connect(dest);
+  osc.start();
+
+  return { stream: dest.stream, ctx: ctx, osc: osc };
+}
 
 function $(id) { return document.getElementById(id); }
 
@@ -19,20 +35,6 @@ function setStatus(txt) {
   if (el) el.textContent = "Status: " + txt;
 }
 
-function initBars() {
-  var barsContainer = $("barsContainer");
-  if (!barsContainer) return;
-
-  barsContainer.innerHTML = "";
-  bars = [];
-
-  for (var i = 0; i < BAR_COUNT; i++) {
-    var b = document.createElement("div");
-    b.className = "bar";
-    barsContainer.appendChild(b);
-    bars.push(b);
-  }
-}
 
 function initAudioGraphFromStream(mediaStream) {
   if (!audioCtx) {
@@ -53,9 +55,6 @@ function initAudioGraphFromStream(mediaStream) {
   sourceNode = audioCtx.createMediaStreamSource(mediaStream);
   sourceNode.connect(analyser);
 
-  initBars();
-  startAnimation();
-}
 
 function startAnimation() {
   if (rafId) cancelAnimationFrame(rafId);
@@ -76,6 +75,21 @@ function startAnimation() {
 	/* Visuals global verfügbar machen */
 	window.audioFeatures = window.audioFeatures || {};
 	window.audioFeatures.bass = bass;
+	/* mid/high simple */
+	var midStart = Math.min(32, dataArray.length);
+	var midEnd = Math.min(128, dataArray.length);
+
+	var mid = 0;
+	for (var m = midStart; m < midEnd; m++) mid += dataArray[m];
+	mid = mid / (Math.max(1, (midEnd - midStart)) * 255);
+
+	var high = 0;
+	for (var h = midEnd; h < dataArray.length; h++) high += dataArray[h];
+	high = high / (Math.max(1, (dataArray.length - midEnd)) * 255);
+
+	window.audioFeatures.mid = mid;
+	window.audioFeatures.high = high;
+
 
 
     // Leaf Animation
@@ -103,14 +117,6 @@ function startAnimation() {
       }
     }
 
-    // Bars
-    var step = Math.floor(dataArray.length / BAR_COUNT);
-    for (var j = 0; j < bars.length; j++) {
-      var idx = Math.min(dataArray.length - 1, Math.floor(j * step));
-      var v = dataArray[idx] / 255;
-      bars[j].style.height = (8 + v * 120) + "px";
-    }
-  }
 
   animate();
 }
@@ -151,8 +157,15 @@ function connectToHost(hostPeerId) {
 function startCall(hostPeerId) {
   setStatus("Rufe Host an…");
 
-  // leeren Stream senden statt null
-  call = peer.call(hostPeerId, new MediaStream());
+var silent = createSilentAudioStream();
+
+// Wichtig: manche Browser starten AudioContext erst nach User-Geste (dein Klick zählt)
+if (silent.ctx && silent.ctx.state === "suspended") {
+  silent.ctx.resume();
+}
+
+call = peer.call(hostPeerId, silent.stream);
+
 
   if (!call) {
     setStatus("Call konnte nicht gestartet werden.");
@@ -187,7 +200,6 @@ function startCall(hostPeerId) {
 }
 
 document.addEventListener("DOMContentLoaded", function () {
-  initBars();
 
   var btn = $("connectBtn");
   if (btn) {
