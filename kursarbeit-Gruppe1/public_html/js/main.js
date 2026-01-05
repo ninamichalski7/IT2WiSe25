@@ -83,12 +83,12 @@ document.addEventListener('DOMContentLoaded', function() {
   /* Pflanzenstatus */
   function plantStatus(bass, mid, high, bpm) {
     if (currentGenre === "techno" && (bass > 0.45 || bpm > 130)) {
-      return { text: "Techno zu aggressiv fÃ¼r BlÃ¼ten", status: "stress" };
+      return { text: "Techno zu aggressiv für Blüten", status: "stress" };
     }
-    if (high > 0.70) return { text: "Hohe Frequenzen schaden BlÃ¼ten", status: "stress" };
-    if (bpm > 140) return { text: "Zu schnell - Pflanze Ã¼berfordert", status: "stress" };
-    if (bass > 0.65) return { text: "Basslastig â€“ Wurzeln Ã¼berfordert", status: "stress" };
-    if (mid > 0.45 || (bpm < 140)) return { text: "Sanfte TÃ¶ne - optimal fÃ¼r Wachstum", status: "optimal" };
+    if (high > 0.70) return { text: "Hohe Frequenzen schaden Blüten", status: "stress" };
+    if (bpm > 140) return { text: "Zu schnell - Pflanze Überfordert", status: "stress" };
+    if (bass > 0.65) return { text: "Zu basslastig - Wurzeln überfordert", status: "stress" };
+    if (mid > 0.45 || (bpm < 140)) return { text: "Sanfte Töne - optimal für Wachstum", status: "optimal" };
     return { text: "Zu ruhig - wenig Wachstum", status: "warning" };
   }
 
@@ -115,7 +115,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  /* Alles zurücksetzen */
+  /* Alles zurÃ¼cksetzen */
   function stopAll() {
     if (rafId) cancelAnimationFrame(rafId);
     if (audioElem) { 
@@ -215,13 +215,13 @@ if (PeerClass) {
       peer.on('open', function(id) {
         document.getElementById('peerIdDisplay').textContent = id;
         document.getElementById('peerIdDisplay').style.display = 'block';
-        updateStreamStatus("ðŸŸ¢ LIVE - Peer-ID: Kopiere fÃ¼r Zuschauer");
+        updateStreamStatus("LIVE - Peer-ID: Kopiere für Zuschauer");
       });
       
       peer.on('call', function(call) {
         currentCall = call;
         call.answer(localStream);
-        updateStreamStatus("ðŸŸ¢ Zuschauer verbunden!");
+        updateStreamStatus("✅ Zuschauer verbunden!");
       });
       
       if (!audioCtx) initAudioContext();
@@ -231,7 +231,7 @@ if (PeerClass) {
       sourceNode.connect(analyser);
       
       isStreaming = true;
-      document.getElementById('startBroadcastBtn').innerHTML = 'â¹ï¸ Stream stoppen';
+      document.getElementById('startBroadcastBtn').innerHTML = '⏺️ Stream stoppen';
       
     }).catch(function(err) {
       alert("Mikrofon Fehler: " + err.message + "\nTipp: Mikrofon freigeben!");
@@ -255,7 +255,7 @@ if (PeerClass) {
     }
     
     isStreaming = false;
-    document.getElementById('startBroadcastBtn').innerHTML = 'âºï¸ Live streamen';
+    document.getElementById('startBroadcastBtn').innerHTML = '▶️ Live streamen';
     document.getElementById('peerIdDisplay').style.display = 'none';
     updateStreamStatus("Stream: Gestoppt");
   }
@@ -345,7 +345,7 @@ if (PeerClass) {
     var stabilityText = document.getElementById('stabilityText');
     if (stabilityFill && stabilityText) {
       stabilityFill.style.width = stabilityPct + '%';
-      stabilityText.textContent = 'StabilitÃ¤t: ' + stabilityPct + '%';
+      stabilityText.textContent = 'Stabilität: ' + stabilityPct + '%';
       
       if (stabilityPct >= 70) {
         stabilityFill.style.background = 'linear-gradient(90deg,#10b981,#34d399)';
@@ -398,7 +398,7 @@ if (PeerClass) {
   if (!leafGroup) return;
 
   // Grundfarbe des Genres
-  var baseColor = GENRE[currentGenre]?.colorA || "#ffaa00";
+  var baseColor = (GENRE[currentGenre] && GENRE[currentGenre].colorA) ? GENRE[currentGenre].colorA : "#ffaa00";
 
   leafGroup.style.fill = baseColor;
   leafGroup.style.transform = 'translate(100px,110px) rotate(0deg) scale(1)';
@@ -408,7 +408,7 @@ if (PeerClass) {
     children[i].style.fill = baseColor;
   }
 
-  // Status-Tracking zur�cksetzen
+  // Status-Tracking zurücksetzen
   statusHistory = [];
   beatHistory = [];
   lastPeakTime = 0;
@@ -437,7 +437,7 @@ if (PeerClass) {
         setupAudio(GENRE_SONGS[currentGenre], false);
       } 
       else {
-        alert('Bitte wÃ¤hle eine Audioquelle.');
+        alert('Bitte wäle eine Audioquelle.');
       }
     });
   }
@@ -515,11 +515,11 @@ if (PeerClass) {
     var peerId = window.location.hash.slice(1);
     if (peerId && !isStreaming) {
       currentSourceType = 'remoteMic';
-      updateStreamStatus("ðŸ”„ Verbinde mit Streamer...");
+      updateStreamStatus("Verbinde mit Streamer...");
       
 		var PeerClass = (typeof window !== 'undefined' && window.Peer) ? window.Peer : null;
 		if (!PeerClass) {
-        updateStreamStatus("PeerJS nicht verfÃ¼gbar");
+        updateStreamStatus("PeerJS nicht verfügbar");
         return;
       }
       
@@ -536,7 +536,7 @@ if (PeerClass) {
             sourceNode = remoteSource;
             sourceNode.connect(analyser);
             
-            updateStreamStatus("âœ… Mit Streamer verbunden");
+            updateStreamStatus("Mit Streamer verbunden");
             isStreaming = true;
             animate();
           });
