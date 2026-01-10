@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Controls</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <div class="particles" id="particles"></div>
+
+  <header>
+    <nav class="navbar">
+      <div class="nav-container">
+        <div class="nav-logo">Synth Garden</div>
+       <ul class="nav-links">
+		  <li><a href="index.html">Startseite</a></li>
+		  <li><a href="include/index.html#experience">Experience</a></li>
+		  <li><a href="about.html">About</a></li>
+		  <li><a href="controls.html">Controls</a></li>
+		</ul>
+
+      </div>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="hero-section" style="padding-top:20px;">
+      <h1 style="color:#86efac; margin-bottom:20px;">Steuerung und Einstellungen</h1>
+      <p class="description">
+        Hier findest du alle Infos zu den Reglern, Audioquellen und Genre-Profilen,
+        die du in der Experience-Sektion nutzen kannst.
+      </p>
+    </section>
+
+    <section class="features" style="margin-top:40px;">
+
+      <div class="feature-card">
+        <span class="feature-icon">🎤</span>
+        <h3>Mikrofon</h3>
+        <p>
+          Nutze dein Mikrofon, um live auf deine Stimme, Klatschen oder Instrumente zu reagieren.
+        </p>
+      </div>
+
+      <div class="feature-card">
+        <span class="feature-icon">🎧</span>
+        <h3>Audio-Datei</h3>
+        <p>
+          Lade eine beliebige Musikdatei hoch. Sie wird analysiert und steuert Bewegung und Farben der Pflanze.
+        </p>
+      </div>
+
+      <div class="feature-card">
+        <span class="feature-icon">🔊</span>
+        <h3>Empfindlichkeit</h3>
+        <p>
+          Anpassbarer Verstärkungsfaktor für leise und laute Musik. Perfektioniert das Pflanzen-Wachstum.
+        </p>
+      </div>
+
+      <div class="feature-card">
+        <span class="feature-icon">🎚</span>
+        <h3>Genre-Profile</h3>
+        <p>
+          Jedes Genre verändert Wachstumsdynamik, Wobble-Bewegung und Farbkombination:
+          Klassik, Rock/Metal, Elektronisch, Ambient.
+        </p>
+      </div>
+
+    </section>
+
+    <section style="margin-top:60px;">
+      <h2 style="text-align:center; color:#a7f3d0; margin-bottom:20px;">Legende</h2>
+      <ul style="max-width:700px; margin:0 auto; line-height:1.8; color:#d1fae5;">
+        <li><strong>Wachstum:</strong> Wie groß die Pflanze bei Peaks wird.</li>
+        <li><strong>Wobble:</strong> Seitliche organische Bewegungen.</li>
+        <li><strong>Farben:</strong> Gradient-Farbübergänge je nach Genre.</li>
+        <li><strong>FFT-Bars:</strong> Frequenzspektrums-Anzeige am unteren Rand.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <p>&copy; 2025 Synth Garden – Eine interaktive Klang-Visualisierung</p>
+  </footer>
+
+  <script>
+    function createParticles() {
+      const particlesContainer = document.getElementById('particles');
+      for (let i = 0; i < 40; i++) {
+        const p = document.createElement('div');
+        p.className = 'particle';
+        p.style.left = Math.random() * 100 + '%';
+        p.style.top = Math.random() * 100 + '%';
+        p.style.animationDelay = Math.random() * 6 + 's';
+        p.style.animationDuration = (4 + Math.random() * 4) + 's';
+        particlesContainer.appendChild(p);
+      }
+    }
+    document.addEventListener('DOMContentLoaded', createParticles);
+  </script>
+</body>
+</html>
